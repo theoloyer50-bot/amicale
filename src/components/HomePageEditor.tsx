@@ -39,7 +39,7 @@ export function HomePageEditor({ accessToken }: HomePageEditorProps) {
     setMessage(null);
 
     try {
-      // Save to localStorage for now (you could also save to Supabase)
+      // Save to localStorage until the editor is connected to Firebase.
       localStorage.setItem('homePageContent', JSON.stringify(content));
       
       setMessage({ type: 'success', text: 'Contenu enregistré avec succès !' });

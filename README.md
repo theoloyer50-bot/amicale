@@ -11,7 +11,7 @@
 
   ## Installation locale (Windows) ⚙️
 
-  Si `npm run vercel-build` sort avec une erreur `126` ou si PowerShell indique que `node` ou `npm` est introuvable :
+  Si PowerShell indique que `node` ou `npm` est introuvable :
 
   - Vérifiez Node.js : exécutez `node -v` et `npm -v`.
   - Si manquant, installez Node.js LTS depuis https://nodejs.org ou utilisez nvm-windows (https://github.com/coreybutler/nvm-windows).
@@ -22,19 +22,25 @@
 
   ```powershell
   npm ci
-  npm run vercel-build
+  npm run build
   ```
 
-  ## Vercel: erreur "Permission denied" sur `node_modules/.bin/vite`
+  ## Firebase
 
-  Si la build Vercel échoue avec un message du type:
+  Le site et l'API sont déployés sur Firebase Hosting et Firebase Functions. Les données applicatives sont stockées dans Firebase Realtime Database (`https://amicale-tourlaville-default-rtdb.europe-west1.firebasedatabase.app`) et les comptes/mots de passe sont gérés par Firebase Authentication.
 
+  Copiez `functions/.env.example` vers `functions/.env.amicale-tourlaville` et renseignez la clé API Web Firebase. Ce fichier local est ignoré par Git. Installez Firebase CLI, connectez-vous, puis lancez :
+
+  ```powershell
+  npm ci
+  npm --prefix functions install
+  npm run build
+  firebase deploy --only functions,hosting,database
   ```
-  sh: line 1: /vercel/path0/node_modules/.bin/vite: Permission denied
-  Error: Command "npm run vercel-build" exited with 126
-  ```
 
-  Alors le runner n'arrive pas à exécuter le shim dans `node_modules/.bin`. Pour contourner cela, les scripts `build` et `vercel-build` ont été mis à jour pour invoquer directement le binaire Vite via Node (`node ./node_modules/vite/bin/vite.js ...`), ce qui évite le problème d'autorisation. Si l'erreur persiste, copiez-collez les lignes d'erreur complètes ici et je regarderai plus en détail.
+  La Realtime Database refuse les accès directs publics ; l'API utilise l'identité de service de Firebase Functions. Les mots de passe ne sont jamais écrits dans la base de données : Firebase Authentication les protège.
+
+  Les anciens comptes et données ne sont pas importés automatiquement. Les utilisateurs devront être recréés ou migrés séparément avant la bascule en production.
 
   ## Limite d'inscriptions pour Sainte-Barbe
 

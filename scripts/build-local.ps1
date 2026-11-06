@@ -9,7 +9,7 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 npm ci
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-npm run vercel-build
+npm run build
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not (Test-Path -Path "dist")) {

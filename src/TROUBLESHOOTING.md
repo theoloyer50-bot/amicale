@@ -8,7 +8,7 @@ Cette erreur peut avoir plusieurs causes :
 
 **Causes possibles :**
 - Email ou mot de passe incorrect
-- Le compte n'existe pas encore dans Supabase
+- Le compte n'existe pas dans Firebase Authentication
 - Le compte n'a pas encore été créé par un administrateur
 
 **Solutions :**

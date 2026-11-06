@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, UserX, Shield, Calendar, Edit, Key, Clock, Unlock, Lock, AlertTriangle, Crown, Eye, UserPlus, Trash2 } from 'lucide-react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { serverApiBase as API_BASE } from '../utils/firebase/info';
 import { CreateUserModal } from './CreateUserModal';
 import { HomePageEditor } from './HomePageEditor';
 import { HeroEditor } from './HeroEditor';
@@ -10,8 +10,6 @@ import { ResetRegistrations } from './ResetRegistrations';
 import { NoelRegistrationsList } from './NoelRegistrationsList';
 import { ListeEnfants } from './ListeEnfants';
 import { DocumentsEditor } from './DocumentsEditor';
-
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-3b9ea24b`;
 
 interface PendingUser {
   userId: string;
@@ -93,9 +91,6 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
       
       // Fetch Sainte-Barbe status
       const sainteBarbeResponse = await fetch(`${API_BASE}/registration-status/sainte-barbe`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
       });
       console.log('[AdminPanel] Sainte-Barbe response status:', sainteBarbeResponse.status);
       if (sainteBarbeResponse.ok) {
@@ -106,9 +101,6 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
       
       // Fetch Noël status
       const noelResponse = await fetch(`${API_BASE}/registration-status/noel`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
       });
       console.log('[AdminPanel] Noël response status:', noelResponse.status);
       if (noelResponse.ok) {

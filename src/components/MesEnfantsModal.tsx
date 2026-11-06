@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Baby, Plus, Edit, Trash2, Save, X } from 'lucide-react';
-import { projectId } from '../utils/supabase/info';
-
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-3b9ea24b`;
+import { serverApiBase as API_BASE } from '../utils/firebase/info';
 
 interface Child {
   id: string;

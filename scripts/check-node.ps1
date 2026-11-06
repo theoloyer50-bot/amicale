@@ -22,7 +22,7 @@ if ($node -and $npm) {
 
     try {
         npm ci
-        Write-Info "Dépendances installées avec succès. Vous pouvez maintenant lancer 'npm run vercel-build'."
+        Write-Info "Dépendances installées avec succès. Vous pouvez maintenant lancer 'npm run build'."
         exit 0
     } catch {
         Write-Err "Échec de 'npm ci'. Rerun with verbose output: npm ci --loglevel verbose"

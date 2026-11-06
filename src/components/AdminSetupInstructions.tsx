@@ -32,12 +32,12 @@ export function AdminSetupInstructions() {
         <div>
           <h3 className="text-xl text-gray-900 mb-3 flex items-center">
             <span className="bg-red-700 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3">2</span>
-            Accéder à Supabase
+            Accéder à Firebase
           </h3>
           <ul className="ml-11 space-y-2 text-gray-700">
             <li className="flex items-start">
               <Database className="w-5 h-5 text-red-700 mr-2 mt-0.5 flex-shrink-0" />
-              <span>Allez sur <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-red-700 underline">https://supabase.com/dashboard</a></span>
+              <span>Allez sur <a href="https://console.firebase.google.com/project/amicale-tourlaville" target="_blank" rel="noopener noreferrer" className="text-red-700 underline">Firebase Console</a></span>
             </li>
             <li>• Connectez-vous si nécessaire</li>
             <li>• Sélectionnez votre projet</li>
@@ -47,19 +47,17 @@ export function AdminSetupInstructions() {
         <div>
           <h3 className="text-xl text-gray-900 mb-3 flex items-center">
             <span className="bg-red-700 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3">3</span>
-            Modifier le statut dans la base de données
+            Promouvoir le compte dans Realtime Database
           </h3>
           <ul className="ml-11 space-y-2 text-gray-700">
-            <li>• Dans le menu de gauche, cliquez sur <strong>"Table Editor"</strong></li>
-            <li>• Sélectionnez la table <code className="bg-gray-100 px-2 py-1 rounded">kv_store_3b9ea24b</code></li>
-            <li>• Trouvez la ligne avec la clé qui commence par <code className="bg-gray-100 px-2 py-1 rounded">user_status:</code></li>
-            <li>• Cliquez sur la ligne pour l'éditer</li>
-            <li>• Dans la colonne <code className="bg-gray-100 px-2 py-1 rounded">value</code>, modifiez le JSON :</li>
+            <li>• Ouvrez <strong>Realtime Database</strong>, puis l'onglet <strong>Data</strong></li>
+            <li>• Sous le nœud <code className="bg-gray-100 px-2 py-1 rounded">kv</code>, trouvez la clé <code className="bg-gray-100 px-2 py-1 rounded">user_status:&lt;UID&gt;</code> correspondant à l'utilisateur dans Authentication</li>
+            <li>• Modifiez le JSON et enregistrez :</li>
           </ul>
           
           <div className="ml-11 mt-4 bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
             <pre className="text-sm">{`{
-  "userId": "votre-user-id",
+              "userId": "UID Firebase",
   "status": "approved",     ← Changez "pending" en "approved"
   "email": "votre@email.com",
   "name": "Votre Nom",
@@ -104,10 +102,10 @@ export function AdminSetupInstructions() {
           </h4>
           <ul className="text-yellow-700 space-y-2">
             <li>
-              <strong>Liste des comptes créés :</strong> Supabase Dashboard → Authentication → Users
+              <strong>Liste des comptes créés :</strong> Firebase Console → Authentication → Users
             </li>
             <li>
-              <strong>Statuts d'approbation :</strong> Supabase Dashboard → Table Editor → kv_store_3b9ea24b
+              <strong>Statuts d'approbation :</strong> Firebase Console → Realtime Database → Data → kv
             </li>
           </ul>
         </div>

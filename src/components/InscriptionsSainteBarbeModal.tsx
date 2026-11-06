@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, X, Users, Lock, AlertCircle, UserPlus, Trash2 } from 'lucide-react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
-
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-3b9ea24b`;
+import { serverApiBase as API_BASE } from '../utils/firebase/info';
 
 interface InscriptionsSainteBarbeModalProps {
   isOpen: boolean;
@@ -60,9 +58,6 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
   const fetchRegistrationStatus = async () => {
     try {
       const response = await fetch(`${API_BASE}/registration-status/sainte-barbe`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
       });
 
       if (response.ok) {

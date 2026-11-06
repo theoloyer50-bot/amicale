@@ -1,5 +1,6 @@
 import { X, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
+import { serverApiBase } from '../utils/firebase/info';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export function ChangePasswordModal({ isOpen, isMandatory, accessToken, onSucces
 
     try {
       const response = await fetch(
-        `https://${(await import('../utils/supabase/info.tsx')).projectId}.supabase.co/functions/v1/make-server-3b9ea24b/change-password`,
+        `${serverApiBase}/change-password`,
         {
           method: 'POST',
           headers: {

@@ -8,15 +8,13 @@
 
 ## Étape 2 : Approuver et promouvoir en administrateur
 
-Pour approuver le premier compte et le promouvoir en administrateur, vous devez accéder directement à la base de données Supabase :
+Pour approuver le premier compte et le promouvoir en administrateur, utilisez Firebase Authentication pour vérifier que le compte existe, puis Firebase Realtime Database pour modifier son rôle et son statut.
 
-1. Allez sur https://supabase.com/dashboard
-2. Sélectionnez votre projet
-3. Allez dans "Table Editor" dans le menu de gauche
-4. Sélectionnez la table `kv_store_3b9ea24b`
-5. Trouvez la ligne avec la clé qui commence par `user_status:` (suivie de l'ID de votre utilisateur)
-6. Cliquez sur la ligne pour l'éditer
-7. Dans la colonne `value`, modifiez le JSON pour changer :
+1. Allez sur https://console.firebase.google.com/ et ouvrez le projet `amicale-tourlaville`
+2. Ouvrez Realtime Database puis l'onglet Data
+3. Ouvrez le nœud `kv`
+4. Trouvez la clé `user_status:<UID_FIREBASE>` correspondant à l'UID affiché dans Firebase Authentication
+5. Modifiez la valeur JSON pour changer :
    - `"status": "pending"` en `"status": "approved"`
    - Ajoutez `"isAdmin": true`
 
@@ -32,7 +30,7 @@ Le JSON devrait ressembler à ceci :
 }
 ```
 
-8. Sauvegardez les modifications
+6. Sauvegardez les modifications
 
 ## Étape 3 : Se connecter en tant qu'administrateur
 

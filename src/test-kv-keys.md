@@ -1,10 +1,10 @@
 # Test des clés KV Store
 
-Pour déboguer le problème de réinitialisation, ouvrez la console Supabase et vérifiez :
+Pour déboguer le problème de réinitialisation, consultez les logs Firebase Functions et les données dans Firebase Realtime Database (`kv`).
 
 ## 1. Vérifier les clés existantes dans le KV store
 
-Allez dans l'onglet Edge Functions > Logs et cherchez les logs avec le préfixe `[Reset Sainte-Barbe]` ou `[Reset Noël]`.
+Dans Firebase Console, ouvrez Functions > Logs et cherchez les logs avec le préfixe `[Reset Sainte-Barbe]` ou `[Reset Noël]`. Dans Realtime Database > Data > `kv`, inspectez les données correspondantes.
 
 ## 2. Points à vérifier
 
@@ -25,11 +25,10 @@ Si vous ne voyez pas de logs, cela signifie que :
 Vous pouvez tester l'endpoint directement avec curl ou Postman :
 
 ```bash
-curl -X POST https://YOUR_PROJECT_ID.supabase.co/functions/v1/make-server-3b9ea24b/events/sainte-barbe/reset \
+curl -X POST https://europe-west1-amicale-tourlaville.cloudfunctions.net/api/make-server-3b9ea24b/events/sainte-barbe/reset \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
 
 Remplacez :
-- `YOUR_PROJECT_ID` par votre ID de projet Supabase
 - `YOUR_ACCESS_TOKEN` par votre token d'accès admin

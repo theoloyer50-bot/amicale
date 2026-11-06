@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, UserPlus } from 'lucide-react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { serverApiBase } from '../utils/firebase/info';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ export function CreateUserModal({ isOpen, onClose, accessToken, onUserCreated }:
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-3b9ea24b/admin/create-user`,
+        `${serverApiBase}/admin/create-user`,
         {
           method: 'POST',
           headers: {

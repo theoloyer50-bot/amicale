@@ -1,6 +1,4 @@
-import { projectId, publicAnonKey } from './supabase/info.tsx';
-
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-3b9ea24b`;
+import { serverApiBase as API_BASE } from './firebase/info';
 
 // Health check to verify server is accessible
 export async function checkServerHealth(): Promise<boolean> {
@@ -8,7 +6,6 @@ export async function checkServerHealth(): Promise<boolean> {
     const response = await fetch(`${API_BASE}/health`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
       }
     });
     return response.ok;
@@ -46,7 +43,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
       },
       body: JSON.stringify({ email, password })
     });
@@ -60,7 +56,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
       } catch (e) {
         // If response is not JSON
         console.error('Server error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.';
+        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
       }
       throw new Error(errorMessage);
     }
@@ -80,7 +76,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
   } catch (error) {
     console.error('Login exception:', error);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.');
+      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
     }
     throw error;
   }
@@ -95,7 +91,6 @@ export async function signup(email: string, password: string, name: string): Pro
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
       },
       body: JSON.stringify({ email, password, name })
     });
@@ -116,7 +111,7 @@ export async function signup(email: string, password: string, name: string): Pro
   } catch (error) {
     console.error('Signup exception:', error);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.');
+      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
     }
     throw error;
   }
@@ -181,9 +176,7 @@ export async function resetPassword(email: string): Promise<{ message: string }>
     const response = await fetch(`${API_BASE}/reset-password`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
+        'Content-Type': 'application/json'
       body: JSON.stringify({ email })
     });
 
@@ -195,7 +188,7 @@ export async function resetPassword(email: string): Promise<{ message: string }>
         errorMessage = error.error || errorMessage;
       } catch (e) {
         console.error('Reset password error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.';
+        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
       }
       throw new Error(errorMessage);
     }
@@ -207,7 +200,7 @@ export async function resetPassword(email: string): Promise<{ message: string }>
   } catch (error) {
     console.error('resetPassword exception:', error);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.');
+      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
     }
     throw error;
   }
@@ -232,7 +225,7 @@ export async function changePassword(accessToken: string, currentPassword: strin
         errorMessage = error.error || errorMessage;
       } catch (e) {
         console.error('Change password error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.';
+        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
       }
       throw new Error(errorMessage);
     }
@@ -244,7 +237,7 @@ export async function changePassword(accessToken: string, currentPassword: strin
   } catch (error) {
     console.error('changePassword exception:', error);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur. Veuillez vérifier que la fonction Edge Supabase est déployée.');
+      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
     }
     throw error;
   }

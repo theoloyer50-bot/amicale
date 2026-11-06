@@ -1,16 +1,19 @@
-import { Hono } from "npm:hono";
-import { cors } from "npm:hono/cors";
-import { logger } from "npm:hono/logger";
-import * as kv from "./kv_store.tsx";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getRequestListener } from "@hono/node-server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { onRequest } from "firebase-functions/v2/https";
+import * as kv from "./kv_store";
+import { firebaseAuth } from "./auth_adapter";
 
 const app = new Hono();
-
-// Create Supabase admin client
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-);
+if (!getApps().length) {
+  initializeApp({
+    databaseURL: process.env.FIREBASE_DATABASE_URL || "https://amicale-tourlaville-default-rtdb.europe-west1.firebasedatabase.app",
+  });
+}
+const firebaseAuthProvider = { auth: firebaseAuth };
 
 // Helper function to get user role (checks multiple sources)
 async function getUserRole(userId: string): Promise<string> {
@@ -93,14 +96,8 @@ app.post("/make-server-3b9ea24b/login", async (c) => {
       return c.json({ error: "Email et mot de passe requis" }, 400);
     }
 
-    // Create a non-admin client for user authentication
-    const authClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
-    );
-
-    // Authenticate with Supabase
-    const { data, error } = await authClient.auth.signInWithPassword({
+    // Authenticate with Firebase Authentication
+    const { data, error } = await firebaseAuthProvider.auth.signInWithPassword({
       email,
       password,
     });
@@ -164,7 +161,7 @@ app.post("/make-server-3b9ea24b/signup", async (c) => {
     const lastName = nameParts.slice(1).join(' ') || '';
 
     // Create user in Supabase
-    const { data, error } = await supabase.auth.admin.createUser({
+    const { data, error } = await firebaseAuthProvider.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -218,7 +215,7 @@ app.get("/make-server-3b9ea24b/session", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Session invalide" }, 401);
@@ -268,7 +265,7 @@ app.post('/make-server-3b9ea24b/setup-super-admin', async (c) => {
     const SUPER_ADMIN_EMAIL = 'theo.loyer@sdis50.fr';
     
     // Récupérer l'utilisateur par email
-    const { data: users, error: getUserError } = await supabase.auth.admin.listUsers();
+    const { data: users, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (getUserError) {
       console.error('Error listing users:', getUserError);
@@ -318,7 +315,7 @@ app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
     const ADMIN_PASSWORD = 'admin50';
     
     // Vérifier si le compte existe déjà
-    const { data: users, error: getUserError } = await supabase.auth.admin.listUsers();
+    const { data: users, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (getUserError) {
       console.error('Error listing users:', getUserError);
@@ -340,7 +337,7 @@ app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
     }
 
     // Créer le nouveau compte admin
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+    const { data: newUser, error: createError } = await firebaseAuthProvider.auth.admin.createUser({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
       email_confirm: true,
@@ -396,7 +393,7 @@ app.post("/make-server-3b9ea24b/events/sainte-barbe/register", async (c) => {
       return c.json({ error: `Maximum ${SAINTE_BARBE_MAX_GUESTS} personnes par inscription` }, 400);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -482,7 +479,7 @@ app.get("/make-server-3b9ea24b/events/sainte-barbe/tables", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -528,7 +525,7 @@ app.get("/make-server-3b9ea24b/events/sainte-barbe/my-registration", async (c) =
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -564,7 +561,7 @@ app.post("/make-server-3b9ea24b/admin/events/sainte-barbe/add-participant", asyn
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -633,7 +630,7 @@ app.post("/make-server-3b9ea24b/admin/events/sainte-barbe/remove-participant", a
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -698,7 +695,7 @@ app.post("/make-server-3b9ea24b/admin/events/sainte-barbe/normalize-registration
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     if (!accessToken) return c.json({ error: "No access token provided" }, 401);
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (error || !user) return c.json({ error: "Unauthorized" }, 401);
 
     const isAdmin = await isUserAdmin(user.id);
@@ -760,7 +757,7 @@ app.post("/make-server-3b9ea24b/events/noel/register", async (c) => {
       return c.json({ error: "Valid number of adults required" }, 400);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -803,7 +800,7 @@ app.get("/make-server-3b9ea24b/events/noel/my-registration", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -835,7 +832,7 @@ app.get("/make-server-3b9ea24b/events/noel/registrations", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -880,14 +877,14 @@ app.post("/make-server-3b9ea24b/admin/first-setup", async (c) => {
     }
 
     // Check secret code (you can change this code)
-    const ADMIN_SECRET_CODE = Deno.env.get('ADMIN_SECRET_CODE') || 'POMPIERS2025';
+    const ADMIN_SECRET_CODE = process.env.ADMIN_SECRET_CODE || '';
     
     if (secretCode !== ADMIN_SECRET_CODE) {
       return c.json({ error: "Code secret incorrect" }, 403);
     }
 
     // Sign in the user to verify credentials
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await firebaseAuthProvider.auth.signInWithPassword({
       email,
       password,
     });
@@ -934,7 +931,7 @@ app.post("/make-server-3b9ea24b/reset-password", async (c) => {
     }
 
     // Send password reset email
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await firebaseAuthProvider.auth.resetPasswordForEmail(email, {
       redirectTo: `${c.req.header('Origin') || 'http://localhost:5173'}/reset-password`,
     });
 
@@ -975,7 +972,7 @@ app.post("/make-server-3b9ea24b/admin/reset-user-password", async (c) => {
     }
 
     // Verify the requesting user is admin
-    const { data: { user: adminUser }, error: adminError } = await supabase.auth.getUser(accessToken);
+    const { data: { user: adminUser }, error: adminError } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (adminError || !adminUser) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -987,7 +984,7 @@ app.post("/make-server-3b9ea24b/admin/reset-user-password", async (c) => {
     }
 
     // Update user password
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
+    const { error: updateError } = await firebaseAuthProvider.auth.admin.updateUserById(
       userId,
       { password: newPassword }
     );
@@ -1049,14 +1046,14 @@ app.post("/make-server-3b9ea24b/change-password", async (c) => {
     }
 
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: userError } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (userError || !user) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
     // Update user password
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
+    const { error: updateError } = await firebaseAuthProvider.auth.admin.updateUserById(
       user.id,
       { password: newPassword }
     );
@@ -1111,7 +1108,7 @@ app.post("/make-server-3b9ea24b/children", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1139,7 +1136,7 @@ app.post("/make-server-3b9ea24b/children", async (c) => {
     // Get parent info if provided
     let parentName = undefined;
     if (parentUserId) {
-      const { data: parentUser } = await supabase.auth.admin.getUserById(parentUserId);
+      const { data: parentUser } = await firebaseAuthProvider.auth.admin.getUserById(parentUserId);
       if (parentUser?.user) {
         parentName = parentUser.user.user_metadata?.name || parentUser.user.email;
       }
@@ -1186,7 +1183,7 @@ app.get("/make-server-3b9ea24b/children", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1214,7 +1211,7 @@ app.put("/make-server-3b9ea24b/children/:id", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1235,7 +1232,7 @@ app.put("/make-server-3b9ea24b/children/:id", async (c) => {
     let parentName = existingChild.parentName;
     if (parentUserId !== undefined) {
       if (parentUserId) {
-        const { data: parentUser } = await supabase.auth.admin.getUserById(parentUserId);
+        const { data: parentUser } = await firebaseAuthProvider.auth.admin.getUserById(parentUserId);
         if (parentUser?.user) {
           parentName = parentUser.user.user_metadata?.name || parentUser.user.email;
         }
@@ -1278,7 +1275,7 @@ app.delete("/make-server-3b9ea24b/children/:id", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1315,7 +1312,7 @@ app.get("/make-server-3b9ea24b/all-children", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1372,7 +1369,7 @@ app.delete("/make-server-3b9ea24b/admin/children/:userId/:childId", async (c) =>
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1416,7 +1413,7 @@ app.post("/make-server-3b9ea24b/admin/children", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -1435,7 +1432,7 @@ app.post("/make-server-3b9ea24b/admin/children", async (c) => {
     }
 
     // Verify the target user exists
-    const { data: targetUser, error: userError } = await supabase.auth.admin.getUserById(userId);
+    const { data: targetUser, error: userError } = await firebaseAuthProvider.auth.admin.getUserById(userId);
     if (userError || !targetUser) {
       return c.json({ error: "Utilisateur non trouvé" }, 404);
     }
@@ -1507,7 +1504,7 @@ app.post("/make-server-3b9ea24b/events/sainte-barbe/status", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1559,7 +1556,7 @@ app.post("/make-server-3b9ea24b/events/noel/status", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1592,7 +1589,7 @@ app.get("/make-server-3b9ea24b/admin/pending-users", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1633,7 +1630,7 @@ app.get("/make-server-3b9ea24b/admin/users", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1645,7 +1642,7 @@ app.get("/make-server-3b9ea24b/admin/users", async (c) => {
     }
 
     // Get all users from Supabase Auth
-    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    const { data: { users }, error: listError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (listError) {
       throw listError;
@@ -1686,7 +1683,7 @@ app.get("/make-server-3b9ea24b/users", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1713,7 +1710,7 @@ app.get("/make-server-3b9ea24b/users", async (c) => {
         
         // Try to get user info from Supabase
         try {
-          const { data: userData } = await supabase.auth.admin.getUserById(userId);
+          const { data: userData } = await firebaseAuthProvider.auth.admin.getUserById(userId);
           if (userData?.user) {
             return {
               userId: userData.user.id,
@@ -1747,7 +1744,7 @@ app.post("/make-server-3b9ea24b/admin/approve-user", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1786,7 +1783,7 @@ app.post("/make-server-3b9ea24b/admin/reject-user", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1825,7 +1822,7 @@ app.post("/make-server-3b9ea24b/admin/update-user-role", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1880,7 +1877,7 @@ app.post("/make-server-3b9ea24b/admin/update-user-status", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1931,7 +1928,7 @@ app.post("/make-server-3b9ea24b/admin/toggle-user-activation", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -1967,7 +1964,7 @@ app.post("/make-server-3b9ea24b/admin/toggle-user-activation", async (c) => {
     if (!isActive) {
       try {
         console.log('[Toggle User Activation] Signing out all sessions for user:', userId);
-        await supabase.auth.admin.signOut(userId, 'global');
+        await firebaseAuthProvider.auth.admin.signOut(userId, 'global');
         console.log('[Toggle User Activation] All sessions signed out successfully');
       } catch (signOutError) {
         console.error('[Toggle User Activation] Error signing out user sessions:', signOutError);
@@ -1996,7 +1993,7 @@ app.post("/make-server-3b9ea24b/admin/delete-user", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     console.log('[Delete User] Auth result:', { userId: user?.id, error: authError?.message });
     if (authError || !user) {
       console.log('[Delete User] Auth failed:', authError);
@@ -2026,7 +2023,7 @@ app.post("/make-server-3b9ea24b/admin/delete-user", async (c) => {
 
     // Delete user from Supabase Auth
     try {
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+      const { error: deleteError } = await firebaseAuthProvider.auth.admin.deleteUser(userId);
       if (deleteError) {
         console.error('[Delete User] Supabase Auth deletion error:', deleteError);
         throw deleteError;
@@ -2098,7 +2095,7 @@ app.post("/make-server-3b9ea24b/admin/registration-status", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
     if (authError || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -2153,7 +2150,7 @@ app.post("/make-server-3b9ea24b/admin/create-user", async (c) => {
     }
 
     // Verify the requesting user is admin
-    const { data: { user: adminUser }, error: adminError } = await supabase.auth.getUser(accessToken);
+    const { data: { user: adminUser }, error: adminError } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (adminError || !adminUser) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -2171,7 +2168,7 @@ app.post("/make-server-3b9ea24b/admin/create-user", async (c) => {
     const lastName = nameParts.slice(1).join(' ') || '';
 
     // Create user in Supabase
-    const { data, error: createError } = await supabase.auth.admin.createUser({
+    const { data, error: createError } = await firebaseAuthProvider.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -2251,7 +2248,7 @@ app.post("/make-server-3b9ea24b/events/sainte-barbe/reset", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       console.log('[Reset Sainte-Barbe] Unauthorized user');
@@ -2332,7 +2329,7 @@ app.post("/make-server-3b9ea24b/events/noel/reset", async (c) => {
       return c.json({ error: "No access token provided" }, 401);
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
 
     if (error || !user) {
       console.log('[Reset Noël] Unauthorized user');
@@ -2382,4 +2379,7 @@ app.post("/make-server-3b9ea24b/events/noel/reset", async (c) => {
   }
 });
 
-Deno.serve(app.fetch);
+export const api = onRequest(
+  { region: "europe-west1", cors: true },
+  getRequestListener(app.fetch),
+);

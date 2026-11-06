@@ -8,6 +8,6 @@ if (check.status !== 0) {
   process.exit(check.status);
 }
 
-console.log('[INFO] Running vercel-build...');
+console.log('[INFO] Running production build...');
 const build = spawnSync('node', ['./node_modules/vite/bin/vite.js', 'build', '--outDir', 'dist'], { stdio: 'inherit' });
 process.exit(build.status);

@@ -34,10 +34,10 @@ export default function App() {
       // Check server health first
       const isHealthy = await auth.checkServerHealth();
       if (!isHealthy) {
-        console.warn('⚠️ Le serveur Edge Supabase ne répond pas. Veuillez attendre quelques instants et rafraîchir la page.');
+        console.warn('⚠️ Le serveur Firebase Functions ne répond pas. Veuillez réessayer dans quelques instants.');
         setError('Le serveur est en cours de démarrage. Veuillez rafraîchir la page dans quelques instants.');
       } else {
-        console.log('✅ Le serveur Edge Supabase est opérationnel');
+        console.log('✅ Le serveur Firebase Functions est opérationnel');
       }
 
       const stored = auth.getStoredAuth();
