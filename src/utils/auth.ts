@@ -4,9 +4,7 @@ import { serverApiBase as API_BASE } from './firebase/info';
 export async function checkServerHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE}/health`, {
-      method: 'GET',
-      headers: {
-      }
+      method: 'GET'
     });
     return response.ok;
   } catch (error) {
@@ -31,6 +29,7 @@ interface User {
 interface AuthResponse {
   user: User;
   access_token: string;
+  refresh_token: string;
 }
 
 interface SignupResponse {
@@ -71,7 +70,8 @@ export async function login(email: string, password: string): Promise<AuthRespon
         role: data.user.role,
         mustChangePassword: data.user.mustChangePassword
       },
-      access_token: data.access_token
+      access_token: data.access_token,
+      refresh_token: data.refresh_token
     };
   } catch (error) {
     console.error('Login exception:', error);
@@ -157,14 +157,29 @@ export async function getSession(accessToken: string): Promise<User> {
   }
 }
 
-export function saveAuth(user: User, accessToken: string): void {
-  localStorage.setItem('auth', JSON.stringify({ user, accessToken }));
+export function saveAuth(user: User, accessToken: string, refreshToken: string): void {
+  localStorage.setItem('auth', JSON.stringify({ user, accessToken, refreshToken }));
 }
 
-export function getStoredAuth(): { user: User; accessToken: string } | null {
+export function getStoredAuth(): { user: User; accessToken: string; refreshToken: string } | null {
   const stored = localStorage.getItem('auth');
   if (!stored) return null;
-  return JSON.parse(stored);
+  const authData = JSON.parse(stored);
+  if (!authData.refreshToken) return null;
+  return authData;
+}
+
+export async function restoreSession(stored: { user: User; accessToken: string; refreshToken: string }) {
+  const response = await fetch(`${API_BASE}/refresh-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: stored.refreshToken })
+  });
+  if (!response.ok) throw new Error('Session expirée. Veuillez vous reconnecter.');
+
+  const tokens = await response.json();
+  const user = await getSession(tokens.access_token);
+  return { user, accessToken: tokens.access_token, refreshToken: tokens.refresh_token };
 }
 
 export function clearAuth(): void {
@@ -177,6 +192,7 @@ export async function resetPassword(email: string): Promise<{ message: string }>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ email })
     });
 

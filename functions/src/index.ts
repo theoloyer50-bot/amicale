@@ -138,7 +138,8 @@ app.post("/make-server-3b9ea24b/login", async (c) => {
         role,
         mustChangePassword: requirePasswordChange === 'true' || userStatus?.mustChangePassword || false
       },
-      access_token: data.session.access_token
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token
     });
   } catch (error) {
     console.error('Login exception:', error);
@@ -259,9 +260,29 @@ app.get("/make-server-3b9ea24b/session", async (c) => {
   }
 });
 
+app.post("/make-server-3b9ea24b/refresh-session", async (c) => {
+  try {
+    const { refreshToken } = await c.req.json();
+    if (!refreshToken) return c.json({ error: "Refresh token required" }, 400);
+
+    const { data, error } = await firebaseAuthProvider.auth.refreshSession(refreshToken);
+    if (error || !data) return c.json({ error: "Session Firebase expirée" }, 401);
+    return c.json(data);
+  } catch (error) {
+    console.error("Firebase session refresh failed:", error);
+    return c.json({ error: "Impossible de renouveler la session" }, 500);
+  }
+});
+
 // Route pour configurer le super admin (theo.loyer@sdis50.fr)
 app.post('/make-server-3b9ea24b/setup-super-admin', async (c) => {
   try {
+    const { secretCode } = await c.req.json();
+    const configuredSecret = process.env.ADMIN_SECRET_CODE;
+    if (!configuredSecret || secretCode !== configuredSecret) {
+      return c.json({ error: 'Code secret incorrect' }, 403);
+    }
+
     const SUPER_ADMIN_EMAIL = 'theo.loyer@sdis50.fr';
     
     // Récupérer l'utilisateur par email
@@ -312,7 +333,14 @@ app.post('/make-server-3b9ea24b/setup-super-admin', async (c) => {
 app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
   try {
     const ADMIN_EMAIL = 'admin@tourlaville-pompiers.fr';
-    const ADMIN_PASSWORD = 'admin50';
+    const { secretCode, password: ADMIN_PASSWORD } = await c.req.json();
+    const configuredSecret = process.env.ADMIN_SECRET_CODE;
+    if (!configuredSecret || secretCode !== configuredSecret) {
+      return c.json({ error: 'Code secret incorrect' }, 403);
+    }
+    if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12) {
+      return c.json({ error: 'Un mot de passe temporaire de 12 caractères minimum est requis' }, 400);
+    }
     
     // Vérifier si le compte existe déjà
     const { data: users, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
@@ -362,7 +390,6 @@ app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
     return c.json({ 
       message: `Compte admin créé avec succès !`,
       email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
       userId: newUser.user.id,
       instructions: 'Vous pouvez maintenant vous connecter avec ces identifiants.'
     });

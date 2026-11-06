@@ -44,7 +44,8 @@ export default function App() {
       if (stored) {
         try {
           // Verify the token is still valid
-          const validUser = await auth.getSession(stored.accessToken);
+          const restored = await auth.restoreSession(stored);
+          const validUser = restored.user;
           console.log('[App] Session restored:', {
             userId: validUser.id,
             email: validUser.email,
@@ -52,7 +53,8 @@ export default function App() {
             type: typeof validUser.mustChangePassword
           });
           setUser(validUser);
-          setAccessToken(stored.accessToken);
+          setAccessToken(restored.accessToken);
+          auth.saveAuth(restored.user, restored.accessToken, restored.refreshToken);
           
           // Check if user must change password
           if (validUser.mustChangePassword) {
@@ -85,7 +87,7 @@ export default function App() {
       });
       setUser(response.user);
       setAccessToken(response.access_token);
-      auth.saveAuth(response.user, response.access_token);
+      auth.saveAuth(response.user, response.access_token, response.refresh_token);
       setIsLoginModalOpen(false);
       
       // Check if user must change password

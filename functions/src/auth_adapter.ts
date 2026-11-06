@@ -78,6 +78,29 @@ async function resetPasswordForEmail(email: string, options?: { redirectTo?: str
   }
 }
 
+async function refreshSession(refreshToken: string) {
+  const key = apiKey();
+  if (!key) return { error: { message: "FIREBASE_WEB_API_KEY non configurée" } };
+
+  try {
+    const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      return { error: { message: result?.error?.message || "Session Firebase expirée" } };
+    }
+    return {
+      data: { access_token: result.id_token, refresh_token: result.refresh_token },
+      error: null,
+    };
+  } catch (error) {
+    return { error: asAuthError(error) };
+  }
+}
+
 export const firebaseAuth = {
   getUser: async (idToken: string) => {
     try {
@@ -90,6 +113,7 @@ export const firebaseAuth = {
   },
   signInWithPassword,
   resetPasswordForEmail,
+  refreshSession,
   admin: {
     createUser: async (input: any) => {
       try {
@@ -107,7 +131,7 @@ export const firebaseAuth = {
     getUserById: async (uid: string) => {
       try {
         const user = await auth().getUser(uid);
-        return { data: { user: toCompatUser(user) }, error: null };
+        return { data: { user: { user: toCompatUser(user) } }, error: null };
       } catch (error) {
         return { data: { user: null }, error: asAuthError(error) };
       }
