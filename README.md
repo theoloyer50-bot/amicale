@@ -29,7 +29,7 @@
 
   Le site et l'API sont déployés sur Firebase Hosting et Firebase Functions. Les données applicatives sont stockées dans Firebase Realtime Database (`https://amicale-tourlaville-default-rtdb.europe-west1.firebasedatabase.app`) et les comptes/mots de passe sont gérés par Firebase Authentication.
 
-  Copiez `functions/.env.example` vers `functions/.env.amicale-tourlaville` et renseignez la clé API Web Firebase. Ce fichier local est ignoré par Git. Installez Firebase CLI, connectez-vous, puis lancez :
+  Dans Firebase Console, activez Authentication > Sign-in method > Email/Password. Copiez `functions/.env.example` vers `functions/.env.amicale-tourlaville` et renseignez la clé API Web Firebase ainsi qu'un `ADMIN_SECRET_CODE` long et privé. Ce fichier local est ignoré par Git. Installez Firebase CLI, connectez-vous, puis lancez :
 
   ```powershell
   npm ci
@@ -40,7 +40,7 @@
 
   La Realtime Database refuse les accès directs publics ; l'API utilise l'identité de service de Firebase Functions. Les mots de passe ne sont jamais écrits dans la base de données : Firebase Authentication les protège.
 
-  Les anciens comptes et données ne sont pas importés automatiquement. Les utilisateurs devront être recréés ou migrés séparément avant la bascule en production.
+  Les anciens comptes et données ne sont pas importés automatiquement. Les comptes de l'ancien système doivent être recréés ou migrés par procédure dédiée dans Firebase Authentication ; les anciens identifiants d'utilisateur ne correspondent pas aux UID Firebase. Ne désactive pas l'ancien système avant d'avoir migré les données applicatives et vérifié les comptes.
 
   ## Limite d'inscriptions pour Sainte-Barbe
 

@@ -131,7 +131,7 @@ export const firebaseAuth = {
     getUserById: async (uid: string) => {
       try {
         const user = await auth().getUser(uid);
-        return { data: { user: { user: toCompatUser(user) } }, error: null };
+        return { data: { user: toCompatUser(user) }, error: null };
       } catch (error) {
         return { data: { user: null }, error: asAuthError(error) };
       }

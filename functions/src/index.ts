@@ -1,4 +1,3 @@
-import { getRequestListener } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -161,7 +160,7 @@ app.post("/make-server-3b9ea24b/signup", async (c) => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Create user in Supabase
+    // Create user in Firebase Authentication
     const { data, error } = await firebaseAuthProvider.auth.admin.createUser({
       email,
       password,
@@ -293,7 +292,7 @@ app.post('/make-server-3b9ea24b/setup-super-admin', async (c) => {
       return c.json({ error: 'Erreur lors de la récupération des utilisateurs' }, 500);
     }
 
-    const user = users.users.find(u => u.email === SUPER_ADMIN_EMAIL);
+    const user = users.find((u: any) => u.email === SUPER_ADMIN_EMAIL);
     
     if (!user) {
       return c.json({ 
@@ -350,7 +349,7 @@ app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
       return c.json({ error: 'Erreur lors de la récupération des utilisateurs' }, 500);
     }
 
-    const existingUser = users.users.find(u => u.email === ADMIN_EMAIL);
+    const existingUser = users.find((u: any) => u.email === ADMIN_EMAIL);
     
     if (existingUser) {
       // L'utilisateur existe déjà, juste mettre à jour les droits
@@ -927,10 +926,13 @@ app.post("/make-server-3b9ea24b/admin/first-setup", async (c) => {
       status: 'approved',
       email: email,
       name: data.user.user_metadata?.name || email,
+      role: 'admin',
       isAdmin: true,
       createdAt: new Date().toISOString(),
       approvedAt: new Date().toISOString()
     });
+    await kv.set(`user_role:${data.user.id}`, 'admin');
+    await kv.set(`user_approved:${data.user.id}`, 'true');
 
     return c.json({
       message: 'Vous êtes maintenant administrateur',
@@ -1668,7 +1670,7 @@ app.get("/make-server-3b9ea24b/admin/users", async (c) => {
       return c.json({ error: 'Admin access required' }, 403);
     }
 
-    // Get all users from Supabase Auth
+    // Get all users from Firebase Authentication
     const { data: { users }, error: listError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (listError) {
@@ -1735,7 +1737,7 @@ app.get("/make-server-3b9ea24b/users", async (c) => {
           return null;
         }
         
-        // Try to get user info from Supabase
+        // Try to get user info from Firebase Authentication
         try {
           const { data: userData } = await firebaseAuthProvider.auth.admin.getUserById(userId);
           if (userData?.user) {
@@ -2048,16 +2050,16 @@ app.post("/make-server-3b9ea24b/admin/delete-user", async (c) => {
 
     console.log('[Delete User] Starting deletion for user:', userId);
 
-    // Delete user from Supabase Auth
+    // Delete user from Firebase Authentication
     try {
       const { error: deleteError } = await firebaseAuthProvider.auth.admin.deleteUser(userId);
       if (deleteError) {
-        console.error('[Delete User] Supabase Auth deletion error:', deleteError);
+        console.error('[Delete User] Firebase Authentication deletion error:', deleteError);
         throw deleteError;
       }
-      console.log('[Delete User] Deleted from Supabase Auth');
+      console.log('[Delete User] Deleted from Firebase Authentication');
     } catch (authDeleteError) {
-      console.error('[Delete User] Failed to delete from Supabase Auth:', authDeleteError);
+      console.error('[Delete User] Failed to delete from Firebase Authentication:', authDeleteError);
       // Continue with KV cleanup even if auth deletion fails
     }
 
@@ -2194,7 +2196,7 @@ app.post("/make-server-3b9ea24b/admin/create-user", async (c) => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Create user in Supabase
+    // Create user in Firebase Authentication
     const { data, error: createError } = await firebaseAuthProvider.auth.admin.createUser({
       email,
       password,
@@ -2408,5 +2410,27 @@ app.post("/make-server-3b9ea24b/events/noel/reset", async (c) => {
 
 export const api = onRequest(
   { region: "europe-west1", cors: true },
-  getRequestListener(app.fetch),
+  async (req, res) => {
+    try {
+      const requestUrl = new URL(req.originalUrl || req.url, `https://${req.headers.host || "localhost"}`);
+      const headers = new Headers();
+      Object.entries(req.headers).forEach(([name, value]) => {
+        if (Array.isArray(value)) value.forEach((part) => headers.append(name, part));
+        else if (value !== undefined) headers.set(name, value);
+      });
+
+      const request = new Request(requestUrl, {
+        method: req.method,
+        headers,
+        ...(req.method === "GET" || req.method === "HEAD" ? {} : { body: req.rawBody }),
+      });
+      const response = await app.fetch(request);
+      res.status(response.status);
+      response.headers.forEach((value, name) => res.setHeader(name, value));
+      res.send(Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      console.error("Firebase API request failed:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
 );
