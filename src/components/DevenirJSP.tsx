@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, GraduationCap, Heart, Trophy } from 'lucide-react';
+import { getSiteContent } from '../utils/firebase/siteContent';
 
 interface DevenirJSPContent {
   title: string;
@@ -17,18 +18,9 @@ export function DevenirJSP({ isModal = false }: DevenirJSPProps) {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('devenirJSPContent');
-    if (saved) {
-      try {
-        const parsedContent = JSON.parse(saved);
-        setContent({
-          title: parsedContent.title || content.title,
-          subtitle: parsedContent.subtitle || content.subtitle,
-        });
-      } catch (error) {
-        console.error('Error loading JSP content:', error);
-      }
-    }
+    getSiteContent<DevenirJSPContent>('jsp')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading JSP content:', error));
   }, []);
 
   const sectionClasses = isModal ? "" : "py-20 bg-white";

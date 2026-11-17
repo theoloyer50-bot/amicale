@@ -657,8 +657,8 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
             <HomePageEditor accessToken={accessToken} />
             <HeroEditor accessToken={accessToken} />
             <DevenirJSPEditor accessToken={accessToken} />
-            <PublicPageEditor />
-            <DocumentsEditor />
+            <PublicPageEditor accessToken={accessToken} />
+            <DocumentsEditor accessToken={accessToken} />
             <div className="border-t-4 border-red-200 pt-8">
               <h3 className="text-2xl text-gray-900 mb-4 flex items-center gap-2">
                 <Trash2 className="w-6 h-6 text-red-700" />

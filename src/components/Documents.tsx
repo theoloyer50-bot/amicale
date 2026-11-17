@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FileText, Download, X, Calendar } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { getSiteContent } from '../utils/firebase/siteContent';
 
 interface Document {
   id: string;
@@ -25,19 +25,15 @@ export function Documents({ accessToken, isModal = false }: DocumentsProps) {
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [accessToken]);
 
   const fetchDocuments = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // For now, load from localStorage
-      const saved = localStorage.getItem('documents');
-      if (saved) {
-        const docs = JSON.parse(saved);
-        setDocuments(docs);
-      }
+      const saved = await getSiteContent<Document[]>('documents', accessToken);
+      setDocuments(saved || []);
     } catch (error) {
       console.error('Error loading documents:', error);
       setError('Erreur lors du chargement des documents');
