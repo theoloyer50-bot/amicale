@@ -1,6 +1,35 @@
 {
   "rules": {
     ".read": false,
-    ".write": false
+    ".write": false,
+    "kv": {
+      "memberAccounts": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+          ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && !data.exists() && newData.child('status').val() === 'pending' && newData.child('role').val() === 'membre' && newData.child('isAdmin').val() === false))"
+        }
+      },
+      "site_content:homepage": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:hero": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:jsp": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:public": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:documents": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      }
+    }
   }
 }

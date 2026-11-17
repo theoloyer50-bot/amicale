@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, UserPlus } from 'lucide-react';
-import { serverApiBase } from '../utils/firebase/info';
+import { createMemberAccount } from '../utils/firebase/accounts';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -28,29 +28,7 @@ export function CreateUserModal({ isOpen, onClose, accessToken, onUserCreated }:
     console.log('[CreateUserModal] Submitting with requirePasswordChange:', requirePasswordChange);
 
     try {
-      const response = await fetch(
-        `${serverApiBase}/admin/create-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email,
-            password,
-            name,
-            role,
-            requirePasswordChange
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de la création du compte');
-      }
+      await createMemberAccount({ email, password, name, role, requirePasswordChange });
 
       setSuccess(true);
       setEmail('');

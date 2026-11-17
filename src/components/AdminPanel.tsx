@@ -10,6 +10,13 @@ import { ResetRegistrations } from './ResetRegistrations';
 import { NoelRegistrationsList } from './NoelRegistrationsList';
 import { ListeEnfants } from './ListeEnfants';
 import { DocumentsEditor } from './DocumentsEditor';
+import {
+  listMemberAccounts,
+  sendMemberPasswordReset,
+  updateMemberRole,
+  updateMemberStatus,
+} from '../utils/firebase/accounts';
+import { firebaseAuth } from '../utils/firebase/client';
 
 interface PendingUser {
   userId: string;
@@ -43,8 +50,6 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   // Initialize activeTab based on userRole
   const [activeTab, setActiveTab] = useState<TabType>(userRole === 'superviseur' ? 'noel-registrations' : 'pending');
   const [passwordModalUserId, setPasswordModalUserId] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [requirePasswordChange, setRequirePasswordChange] = useState(false);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
   
@@ -57,20 +62,8 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE}/admin/pending-users`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors du chargement des utilisateurs');
-      }
-
-      const data = await response.json();
-      console.log(`[AdminPanel] Fetched users:`, data.users);
-      setPendingUsers(data.users || []);
+      const users = await listMemberAccounts();
+      setPendingUsers(users);
     } catch (error) {
       console.error('Error fetching pending users:', error);
       setError(error instanceof Error ? error.message : 'Erreur de chargement');
@@ -203,31 +196,8 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
 
   const handleUpdateStatus = async (userId: string, status: 'approved' | 'rejected') => {
     try {
-      console.log(`[AdminPanel] Updating user ${userId} status to ${status}`);
-      const response = await fetch(`${API_BASE}/admin/update-user-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ userId, status })
-      });
-
-      console.log(`[AdminPanel] Response status: ${response.status}`);
-      
-      if (!response.ok) {
-        const data = await response.json();
-        console.error(`[AdminPanel] Error response:`, data);
-        throw new Error(data.error || 'Erreur lors de la mise à jour');
-      }
-
-      const data = await response.json();
-      console.log(`[AdminPanel] Success response:`, data);
-      
-      // Refresh the list
-      console.log(`[AdminPanel] Refreshing pending users...`);
+      await updateMemberStatus(userId, status);
       await fetchPendingUsers();
-      console.log(`[AdminPanel] Refresh complete`);
     } catch (error) {
       console.error('Error updating user status:', error);
       setError(error instanceof Error ? error.message : 'Erreur de mise à jour');
@@ -236,23 +206,10 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
 
   const handleUpdateRole = async (userId: string, role: 'membre' | 'superviseur' | 'admin') => {
     try {
-      console.log('Updating role for user:', userId, 'to role:', role, 'type:', typeof role);
-      const response = await fetch(`${API_BASE}/admin/update-user-role`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ userId, role })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        console.error('Role update failed:', data);
-        throw new Error(data.error || 'Erreur lors de la mise à jour du rôle');
+      if (userId === firebaseAuth.currentUser?.uid && role !== 'admin') {
+        throw new Error('Vous ne pouvez pas retirer votre propre rôle administrateur.');
       }
-
-      // Refresh the list
+      await updateMemberRole(userId, role);
       await fetchPendingUsers();
     } catch (error) {
       console.error('Error updating user role:', error);
@@ -261,37 +218,15 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   };
 
   const handleResetPassword = async (userId: string) => {
-    if (!newPassword || newPassword.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
-
     try {
       setIsSubmittingPassword(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/admin/reset-user-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ 
-          userId, 
-          newPassword,
-          requirePasswordChange 
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la réinitialisation du mot de passe');
-      }
+      const account = pendingUsers.find((item) => item.userId === userId);
+      await sendMemberPasswordReset(account?.email || '');
 
       // Close modal and reset form
       setPasswordModalUserId(null);
-      setNewPassword('');
-      setRequirePasswordChange(false);
       
       // Refresh the list
       await fetchPendingUsers();
@@ -307,24 +242,16 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
     try {
       setError(null);
       const isActive = currentStatus !== 'approved';
+
+      if (!isActive && userId === firebaseAuth.currentUser?.uid) {
+        throw new Error('Vous ne pouvez pas désactiver votre propre compte administrateur.');
+      }
       
       if (!confirm(isActive ? 'Voulez-vous vraiment activer cet utilisateur ?' : 'Voulez-vous vraiment désactiver cet utilisateur ?')) {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/admin/toggle-user-activation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ userId, isActive })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la modification du statut');
-      }
+      await updateMemberStatus(userId, isActive ? 'approved' : 'rejected');
 
       // Refresh the list
       await fetchPendingUsers();
@@ -338,38 +265,15 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
     try {
       setError(null);
       
-      if (!confirm(`⚠️ ATTENTION ⚠️\n\nVoulez-vous vraiment supprimer définitivement l'utilisateur "${userName}" ?\n\nCette action supprimera :\n- Le compte utilisateur\n- Toutes ses inscriptions\n- Tous ses enfants déclarés\n- Toutes ses données\n\nCette action est IRRÉVERSIBLE !`)) {
+      if (userId === firebaseAuth.currentUser?.uid) {
+        setError('Vous ne pouvez pas désactiver votre propre compte administrateur.');
+        return;
+      }
+      if (!confirm(`Désactiver l’accès de "${userName}" au site ? Son compte d’authentification sera conservé, mais il ne pourra plus se connecter.`)) {
         return;
       }
 
-      console.log('[handleDeleteUser] Deleting user:', userId, 'with token:', accessToken?.substring(0, 20) + '...');
-
-      const response = await fetch(`${API_BASE}/admin/delete-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ userId })
-      });
-
-      console.log('[handleDeleteUser] Response status:', response.status);
-
-      if (!response.ok) {
-        const data = await response.json();
-        console.error('[handleDeleteUser] Error response:', data);
-        
-        // Si le token est invalide, déconnecter l'utilisateur
-        if (response.status === 401) {
-          alert('Votre session a expiré. Veuillez vous reconnecter.');
-          window.location.reload();
-          return;
-        }
-        
-        throw new Error(data.error || 'Erreur lors de la suppression');
-      }
-
-      // Refresh the list
+      await updateMemberStatus(userId, 'rejected');
       await fetchPendingUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -820,10 +724,10 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                                 <button
                                   onClick={() => handleDeleteUser(user.userId, user.name)}
                                   className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                                  title="Supprimer"
+                                  title="Désactiver le compte"
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                  <span className="sm:hidden">Supprimer</span>
+                                  <Lock className="w-4 h-4" />
+                                  <span className="sm:hidden">Désactiver</span>
                                 </button>
                               </div>
                             </>
@@ -858,10 +762,10 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                               <button
                                 onClick={() => handleDeleteUser(user.userId, user.name)}
                                 className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                                title="Supprimer"
+                                title="Désactiver le compte"
                               >
-                                <Trash2 className="w-4 h-4" />
-                                Supprimer
+                                <Lock className="w-4 h-4" />
+                                Désactiver
                               </button>
                             </>
                           )
@@ -888,47 +792,18 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                 </div>
                 
                 <p className="text-gray-600 mb-4">
-                  Changer le mot de passe de <strong>{user?.name}</strong> ({user?.email})
+                  Envoyer un lien sécurisé pour réinitialiser le mot de passe de <strong>{user?.name}</strong> ({user?.email}).
                 </p>
                 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-700 mb-2">
-                      Nouveau mot de passe
-                    </label>
-                    <input
-                      type="text"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent outline-none"
-                      placeholder="Entrez le nouveau mot de passe"
-                      minLength={6}
-                    />
-                    <p className="text-sm text-gray-500 mt-1">Minimum 6 caractères</p>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                    <label className="flex-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={requirePasswordChange}
-                        onChange={(e) => setRequirePasswordChange(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-900">
-                        Forcer le changement de mot de passe à la prochaine connexion
-                      </span>
-                    </label>
-                  </div>
+                <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-gray-900">Le mot de passe n’est jamais affiché ni transmis par le panneau admin. L’utilisateur choisira lui-même son nouveau mot de passe via Firebase.</p>
                 </div>
 
                 <div className="flex gap-2 mt-6">
                   <button
                     onClick={() => {
                       setPasswordModalUserId(null);
-                      setNewPassword('');
-                      setRequirePasswordChange(false);
                     }}
                     className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition"
                     disabled={isSubmittingPassword}
@@ -938,7 +813,7 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                   <button
                     onClick={() => handleResetPassword(passwordModalUserId)}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    disabled={isSubmittingPassword || newPassword.length < 6}
+                    disabled={isSubmittingPassword}
                   >
                     {isSubmittingPassword ? (
                       <>

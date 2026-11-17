@@ -1,18 +1,12 @@
-import { serverApiBase } from './info';
+import { get, ref, set } from 'firebase/database';
+import { firebaseDatabase } from './client';
 
 export type SiteContentKey = 'homepage' | 'hero' | 'jsp' | 'public' | 'documents';
 
 export async function getSiteContent<T>(key: SiteContentKey, accessToken?: string): Promise<T | null> {
-  const response = await fetch(`${serverApiBase}/site-content/${key}`, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Impossible de charger le contenu (${response.status})`);
-  }
-
-  const result = await response.json();
-  return result.content as T | null;
+  void accessToken;
+  const snapshot = await get(ref(firebaseDatabase, `kv/site_content:${key}`));
+  return snapshot.exists() ? snapshot.val() as T : null;
 }
 
 export async function getOrMigrateSiteContent<T>(
@@ -41,17 +35,6 @@ export async function saveSiteContent<T>(
   content: T,
   accessToken: string,
 ): Promise<void> {
-  const response = await fetch(`${serverApiBase}/site-content/${key}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ content }),
-  });
-
-  if (!response.ok) {
-    const result = await response.json().catch(() => ({}));
-    throw new Error(result.error || `Impossible d'enregistrer le contenu (${response.status})`);
-  }
+  void accessToken;
+  await set(ref(firebaseDatabase, `kv/site_content:${key}`), content);
 }
