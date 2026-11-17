@@ -15,12 +15,11 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10">
-                <path d="M12 2L3 9v11a2 2 0 002 2h14a2 2 0 002-2V9l-9-7z" fill="#DC2626" stroke="#DC2626" strokeWidth="1"/>
-                <path d="M12 2v20M12 8h6M12 12h6M12 16h6M6 8h6M6 12h6M6 16h6" stroke="white" strokeWidth="1.5"/>
-              </svg>
-            </div>
+            <img
+              src="/PHOTO-2026-02-06-09-47-45.jpg"
+              alt="Centre de Secours de Tourlaville"
+              className="h-16 w-12 sm:h-[4.5rem] sm:w-[3.375rem] object-contain rounded bg-white shadow-sm"
+            />
             <div>
               <h1 className="text-xl sm:text-2xl">Amicale des Sapeurs Pompiers</h1>
               <p className="text-sm text-red-100">Tourlaville - Manche</p>
