@@ -64,7 +64,7 @@ export async function createMemberAccount(input: {
 
     const uid = credential.user.uid;
     const now = new Date().toISOString();
-    await set(ref(firebaseDatabase, accountPath(uid)), {
+    const account = {
         userId: uid,
         status: 'approved',
         email: input.email.trim(),
@@ -74,7 +74,18 @@ export async function createMemberAccount(input: {
         createdAt: now,
         approvedAt: now,
         mustChangePassword: input.requirePasswordChange,
-      });
+      };
+    const updates: Record<string, unknown> = {
+      [accountPath(uid)]: account,
+      [`kv/memberDirectory/${uid}`]: {
+        userId: uid,
+        email: input.email.trim(),
+        name: input.name.trim(),
+        role: input.role,
+        status: 'approved',
+      },
+    };
+    await update(ref(firebaseDatabase), updates);
   } catch (error) {
     const code = (error as { code?: string })?.code;
     if (code === 'auth/email-already-in-use') throw new Error('Un compte existe déjà avec cette adresse e-mail.');
@@ -91,23 +102,37 @@ export async function updateMemberStatus(uid: string, status: AccountStatus): Pr
   if (!snapshot.exists()) throw new Error('Utilisateur introuvable.');
   const current = snapshot.val() as MemberAccount;
   const now = new Date().toISOString();
-  await update(ref(firebaseDatabase, accountPath(uid)), {
+  const updates: Record<string, unknown> = {
+    [accountPath(uid)]: {
     ...current,
     status,
     ...(status === 'approved' ? { approvedAt: now } : {}),
     ...(status === 'rejected' ? { deactivatedAt: now } : {}),
-  });
+    },
+  };
+  if (status === 'approved') {
+    updates[`kv/memberDirectory/${uid}`] = { userId: uid, email: current.email, name: current.name, role: current.role, status };
+  } else {
+    updates[`kv/memberDirectory/${uid}`] = null;
+  }
+  await update(ref(firebaseDatabase), updates);
 }
 
 export async function updateMemberRole(uid: string, role: AccountRole): Promise<void> {
   const snapshot = await get(ref(firebaseDatabase, accountPath(uid)));
   if (!snapshot.exists()) throw new Error('Utilisateur introuvable.');
   const current = snapshot.val() as MemberAccount;
-  await update(ref(firebaseDatabase, accountPath(uid)), {
+  const updates: Record<string, unknown> = {
+    [accountPath(uid)]: {
     ...current,
     role,
     isAdmin: role === 'admin',
-  });
+    },
+  };
+  if (current.status === 'approved') {
+    updates[`kv/memberDirectory/${uid}`] = { userId: uid, email: current.email, name: current.name, role, status: current.status };
+  }
+  await update(ref(firebaseDatabase), updates);
 }
 
 export async function sendMemberPasswordReset(email: string): Promise<void> {

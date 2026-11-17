@@ -67,6 +67,9 @@ function authErrorMessage(error: unknown): string {
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
     return 'Adresse e-mail ou mot de passe incorrect.';
   }
+  if (code === 'auth/operation-not-allowed') {
+    return 'La connexion par e-mail/mot de passe est désactivée dans Firebase Authentication.';
+  }
   if (code === 'auth/too-many-requests') return 'Trop de tentatives. Réessaie plus tard.';
   if (code === 'auth/network-request-failed') return 'Connexion impossible. Vérifie ta connexion Internet.';
   return error instanceof Error ? error.message : 'Erreur d’authentification.';

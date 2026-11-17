@@ -25,30 +25,27 @@
   npm run build
   ```
 
-  ## Firebase
+  ## Firebase (forfait Spark)
 
-  Le site et l'API sont déployés sur Firebase Hosting et Firebase Functions. Les données applicatives sont stockées dans Firebase Realtime Database (`https://amicale-tourlaville-default-rtdb.europe-west1.firebasedatabase.app`) et les comptes/mots de passe sont gérés par Firebase Authentication.
+  Le site est hébergé sur Firebase Hosting et utilise directement Firebase Authentication et Realtime Database depuis le navigateur. Les Cloud Functions ne sont plus requises pour les fonctionnalités du site. Les mots de passe ne sont jamais enregistrés dans Realtime Database.
 
-  Dans Firebase Console, activez Authentication > Sign-in method > Email/Password. Copiez `functions/.env.example` vers `functions/.env.amicale-tourlaville` et renseignez la clé API Web Firebase ainsi qu'un `ADMIN_SECRET_CODE` long et privé. Ce fichier local est ignoré par Git. Installez Firebase CLI, connectez-vous, puis lancez :
+  Les paramètres publics du SDK Web sont dans `src/utils/firebase/client.ts`. Les autorisations sont appliquées par `database.rules.json` : la base est privée par défaut, les inscriptions publiques au site ne peuvent créer qu'un profil en attente, et les écrans admin sont limités au rôle admin enregistré dans `kv/memberAccounts/<UID>`.
+
+  Pour déployer avec Firebase CLI :
 
   ```powershell
   npm ci
-  npm --prefix functions install
   npm run build
-  firebase deploy --only functions,hosting,database
+  firebase deploy --only hosting,database
   ```
 
-  La Realtime Database refuse les accès directs publics ; l'API utilise l'identité de service de Firebase Functions. Les mots de passe ne sont jamais écrits dans la base de données : Firebase Authentication les protège.
+  Les comptes sont créés dans Firebase Authentication. Leurs rôles et statuts sont dans `kv/memberAccounts`, et l'annuaire minimal approuvé dans `kv/memberDirectory`. Les contenus de site, inscriptions et données enfants sont stockés sous `kv/site_content:*`, `kv/noelRegistrations`, `kv/sainteBarbeTables` et `kv/children`.
 
-  Les anciens comptes et données ne sont pas importés automatiquement. Les comptes de l'ancien système doivent être recréés ou migrés par procédure dédiée dans Firebase Authentication ; les anciens identifiants d'utilisateur ne correspondent pas aux UID Firebase. Ne désactive pas l'ancien système avant d'avoir migré les données applicatives et vérifié les comptes.
+  ## Limites de gestion sans backend
 
-  ## Limite d'inscriptions pour Sainte-Barbe
+  - La réinitialisation de mot de passe envoie un e-mail Firebase ; le panneau ne peut pas définir directement le mot de passe d'un autre utilisateur.
+  - « Désactiver » bloque l'accès au site, mais ne supprime pas le compte Firebase Authentication. La suppression d'un compte Auth nécessite un backend de confiance.
+  - Sainte-Barbe utilise cinq emplacements de réservation par table (jusqu'à dix personnes si chaque réservation inclut deux personnes). Cette limite est vérifiée par les règles de la base sans fonction serveur.
 
-  Les inscriptions à la Sainte-Barbe sont désormais limitées **à 2 personnes par enregistrement** (champ "Nombre de personnes"). Cette limitation est appliquée côté client et côté serveur. Si vous administrez le site et souhaitez normaliser les inscriptions existantes qui dépasseraient cette limite, utilisez l'endpoint admin dédié:
-
-  ```
-  POST /make-server-3b9ea24b/admin/events/sainte-barbe/normalize-registrations
-  ```
-
-  Il faut être admin pour appeler cet endpoint ; il réduit le nombre de places par participant à 2 et met à jour les totaux de tables.
+  Les anciens comptes et données des anciennes versions ne sont pas migrés automatiquement. Les comptes doivent être créés dans Firebase Authentication et disposer d'un profil correspondant dans Realtime Database.
   

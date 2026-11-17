@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Baby, Plus, Edit, Trash2, Save, X } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { getApprovedMembers, getMyChildren, saveMyChild, deleteMyChild } from '../utils/firebase/siteData';
 
 interface Child {
   id: string;
@@ -55,16 +55,14 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE}/users`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      }
+      const members = await getApprovedMembers();
+      setUsers(members.map((member) => ({
+        userId: member.userId,
+        email: member.email,
+        name: member.name,
+        status: member.status,
+        role: member.role,
+      })));
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -74,19 +72,7 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE}/children`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors du chargement');
-      }
-
-      const data = await response.json();
-      setChildren(data.children || []);
+      setChildren(await getMyChildren());
     } catch (error) {
       console.error('Error fetching children:', error);
       setError(error instanceof Error ? error.message : 'Erreur de chargement');
@@ -103,24 +89,7 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
 
     try {
       setError(null);
-      const response = await fetch(`${API_BASE}/children`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          nom: nom.trim(),
-          prenom: prenom.trim(),
-          dateNaissance: dateNaissance,
-          parentUserId: parentUserId || undefined
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de l\'ajout');
-      }
+      await saveMyChild({ nom, prenom, dateNaissance, parentUserId: parentUserId || undefined });
 
       // Reset form and refresh list
       setNom('');
@@ -143,24 +112,7 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
 
     try {
       setError(null);
-      const response = await fetch(`${API_BASE}/children/${childId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          nom: nom.trim(),
-          prenom: prenom.trim(),
-          dateNaissance: dateNaissance,
-          parentUserId: parentUserId || undefined
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la modification');
-      }
+      await saveMyChild({ nom, prenom, dateNaissance, parentUserId: parentUserId || undefined }, childId);
 
       // Reset form and refresh list
       setNom('');
@@ -182,18 +134,7 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
 
     try {
       setError(null);
-      const response = await fetch(`${API_BASE}/children/${childId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la suppression');
-      }
-
+      await deleteMyChild(childId);
       await fetchChildren();
     } catch (error) {
       console.error('Error deleting child:', error);

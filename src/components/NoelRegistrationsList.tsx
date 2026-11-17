@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, MessageSquare, Baby } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { listNoelRegistrations } from '../utils/firebase/siteData';
 
 interface Registration {
   userId: string;
@@ -37,23 +37,7 @@ export function NoelRegistrationsList({ accessToken }: NoelRegistrationsListProp
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE}/events/noel/registrations`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        // Don't show error if it's just a permission issue
-        if (response.status === 403) {
-          console.log('NoelRegistrationsList: User does not have organizer/admin access');
-          return; // Silently fail for permission issues
-        }
-        throw new Error(data.error || 'Erreur lors du chargement des inscriptions');
-      }
-
-      const data = await response.json();
+      const data = await listNoelRegistrations();
       setRegistrations(data.registrations || []);
       setStats(data.stats || null);
     } catch (error) {

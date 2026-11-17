@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, UserX, Shield, Calendar, Edit, Key, Clock, Unlock, Lock, AlertTriangle, Crown, Eye, UserPlus, Trash2 } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
 import { CreateUserModal } from './CreateUserModal';
 import { HomePageEditor } from './HomePageEditor';
 import { HeroEditor } from './HeroEditor';
@@ -17,6 +16,7 @@ import {
   updateMemberStatus,
 } from '../utils/firebase/accounts';
 import { firebaseAuth } from '../utils/firebase/client';
+import { getEventRegistrationStatus, saveEventRegistrationStatus } from '../utils/firebase/siteData';
 
 interface PendingUser {
   userId: string;
@@ -59,6 +59,11 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
   const fetchPendingUsers = async () => {
+    if (userRole !== 'admin') {
+      setPendingUsers([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       setError(null);
@@ -80,27 +85,12 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   const fetchRegistrationStatuses = async () => {
     try {
       setIsLoadingStatus(true);
-      console.log('[AdminPanel] Fetching registration statuses...');
-      
-      // Fetch Sainte-Barbe status
-      const sainteBarbeResponse = await fetch(`${API_BASE}/registration-status/sainte-barbe`, {
-      });
-      console.log('[AdminPanel] Sainte-Barbe response status:', sainteBarbeResponse.status);
-      if (sainteBarbeResponse.ok) {
-        const data = await sainteBarbeResponse.json();
-        console.log('[AdminPanel] Sainte-Barbe data:', data);
-        setSainteBarbeStatus(data);
-      }
-      
-      // Fetch Noël status
-      const noelResponse = await fetch(`${API_BASE}/registration-status/noel`, {
-      });
-      console.log('[AdminPanel] Noël response status:', noelResponse.status);
-      if (noelResponse.ok) {
-        const data = await noelResponse.json();
-        console.log('[AdminPanel] Noël data:', data);
-        setNoelStatus(data);
-      }
+      const [sainteBarbe, noel] = await Promise.all([
+        getEventRegistrationStatus('sainte-barbe'),
+        getEventRegistrationStatus('noel'),
+      ]);
+      setSainteBarbeStatus(sainteBarbe);
+      setNoelStatus(noel);
     } catch (error) {
       console.error('[AdminPanel] Error fetching registration statuses:', error);
     } finally {
@@ -113,46 +103,19 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
       setError(null);
       const currentStatus = eventType === 'sainte-barbe' ? sainteBarbeStatus : noelStatus;
       
-      console.log('Toggle registration:', { eventType, isOpen, currentStatus });
-      
-      const response = await fetch(`${API_BASE}/admin/registration-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          eventType,
-          isOpen,
-          closedMessage: currentStatus.closedMessage || 'Les inscriptions sont actuellement fermées.'
-        })
-      });
-
-      const data = await response.json();
-      console.log('[AdminPanel] Toggle response:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de la mise à jour');
-      }
+      const updatedStatus = {
+        isOpen,
+        closedMessage: currentStatus.closedMessage || 'Les inscriptions sont actuellement fermées.',
+      };
+      await saveEventRegistrationStatus(eventType, updatedStatus);
 
       // Update local state immediately
-      const updatedStatus = { 
-        isOpen, 
-        closedMessage: currentStatus.closedMessage || 'Les inscriptions sont actuellement fermées.' 
-      };
-      
       if (eventType === 'sainte-barbe') {
         setSainteBarbeStatus(updatedStatus);
       } else {
         setNoelStatus(updatedStatus);
       }
       
-      console.log('[AdminPanel] Registration status updated successfully, new state:', updatedStatus);
-      
-      // Re-fetch from server to confirm
-      setTimeout(() => {
-        fetchRegistrationStatuses();
-      }, 500);
     } catch (error) {
       console.error('[AdminPanel] Error toggling registration:', error);
       setError(error instanceof Error ? error.message : 'Erreur de mise à jour');
@@ -162,25 +125,7 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   const handleUpdateClosedMessage = async (eventType: 'sainte-barbe' | 'noel', message: string) => {
     try {
       const currentStatus = eventType === 'sainte-barbe' ? sainteBarbeStatus : noelStatus;
-      console.log('[AdminPanel] Updating closed message:', { eventType, message, currentStatus });
-      
-      const response = await fetch(`${API_BASE}/admin/registration-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          eventType,
-          isOpen: currentStatus.isOpen,
-          closedMessage: message
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la mise à jour');
-      }
+      await saveEventRegistrationStatus(eventType, { ...currentStatus, closedMessage: message });
 
       // Update local state
       if (eventType === 'sainte-barbe') {

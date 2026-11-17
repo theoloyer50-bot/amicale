@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Baby, Users, Calendar, Filter, TrendingUp, Trash2, UserPlus, X } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { createChildForMember, deleteChildForMember, getApprovedMembers, listChildrenForModerators } from '../utils/firebase/siteData';
 
 interface Child {
   id: string;
@@ -72,20 +72,20 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE}/all-children`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
+      const allChildren = await listChildrenForModerators();
+      setChildren(allChildren);
+      setStats({
+        total: allChildren.length,
+        under14: allChildren.filter((child) => child.age < 14).length,
+        from14AndOver: allChildren.filter((child) => child.age >= 14).length,
+        ageRanges: {
+          '0-3': allChildren.filter((child) => child.age >= 0 && child.age <= 3).length,
+          '4-7': allChildren.filter((child) => child.age >= 4 && child.age <= 7).length,
+          '8-11': allChildren.filter((child) => child.age >= 8 && child.age <= 11).length,
+          '12-14': allChildren.filter((child) => child.age >= 12 && child.age <= 14).length,
+          '15+': allChildren.filter((child) => child.age >= 15).length,
+        },
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors du chargement');
-      }
-
-      const data = await response.json();
-      setChildren(data.children || []);
-      setStats(data.stats || null);
     } catch (error) {
       console.error('Error fetching all children:', error);
       setError(error instanceof Error ? error.message : 'Erreur de chargement');
@@ -96,33 +96,8 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
 
   const fetchAllUsers = async () => {
     try {
-      console.log('[fetchAllUsers] Fetching with token:', accessToken?.substring(0, 20) + '...');
-      const response = await fetch(`${API_BASE}/admin/users`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        
-        // Si le token est invalide, déconnecter l'utilisateur
-        if (response.status === 401) {
-          alert('Votre session a expiré. Veuillez vous reconnecter.');
-          window.location.reload();
-          return;
-        }
-        
-        throw new Error(data.error || 'Erreur lors du chargement des utilisateurs');
-      }
-
-      const data = await response.json();
-      // Map to the format expected by the component
-      const mappedUsers = (data.users || []).map((user: any) => ({
-        id: user.userId,
-        email: user.email,
-        name: user.name
-      }));
+      const members = await getApprovedMembers();
+      const mappedUsers = members.map((user) => ({ id: user.userId, email: user.email, name: user.name }));
       setAllUsers(mappedUsers);
     } catch (error) {
       console.error('Error fetching all users:', error);
@@ -168,24 +143,7 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/admin/children`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: selectedUserId,
-          nom: newChildData.nom,
-          prenom: newChildData.prenom,
-          dateNaissance: newChildData.dateNaissance
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de l\'ajout de l\'enfant');
-      }
+      await createChildForMember(selectedUserId, newChildData);
 
       await fetchAllChildren();
       setShowAddModal(false);
@@ -209,17 +167,7 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/admin/children/${userId}/${childId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la suppression');
-      }
+      await deleteChildForMember(userId, childId);
 
       await fetchAllChildren();
       setSuccessMessage('Enfant supprimé avec succès');
