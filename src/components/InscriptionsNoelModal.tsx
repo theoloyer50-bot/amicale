@@ -86,7 +86,7 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Gift className="w-8 h-8 text-red-700" />
-            <h2 className="text-3xl text-gray-900">Noël 2024</h2>
+            <h2 className="text-3xl text-gray-900">Noël</h2>
           </div>
           <button
             onClick={onClose}

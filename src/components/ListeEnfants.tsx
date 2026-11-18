@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Baby, Users, Calendar, Filter, TrendingUp, Trash2, UserPlus, X } from 'lucide-react';
-import { createChildForMember, deleteChildForMember, getApprovedMembers, listChildrenForModerators } from '../utils/firebase/siteData';
+import { Baby, Users, Calendar, Filter, TrendingUp, Trash2, UserPlus, X, Edit } from 'lucide-react';
+import { deleteChildForMember, getApprovedMembers, listChildrenForModerators, saveChildForMember } from '../utils/firebase/siteData';
 
 interface Child {
   id: string;
@@ -11,6 +11,10 @@ interface Child {
   prenom: string;
   dateNaissance: string;
   age: number;
+  parentUserId?: string;
+  parentName?: string;
+  secondParentUserId?: string;
+  secondParentName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +36,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  fonction?: string;
 }
 
 interface ListeEnfantsProps {
@@ -49,8 +54,11 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
   const [ageFilter, setAgeFilter] = useState<'all' | 'under14' | '14plus'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [hasSecondParent, setHasSecondParent] = useState(false);
+  const [secondParentUserId, setSecondParentUserId] = useState('');
   const [newChildData, setNewChildData] = useState({
     nom: '',
     prenom: '',
@@ -97,7 +105,7 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
   const fetchAllUsers = async () => {
     try {
       const members = await getApprovedMembers();
-      const mappedUsers = members.map((user) => ({ id: user.userId, email: user.email, name: user.name }));
+      const mappedUsers = members.map((user) => ({ id: user.userId, email: user.email, name: user.name, fonction: user.fonction }));
       setAllUsers(mappedUsers);
     } catch (error) {
       console.error('Error fetching all users:', error);
@@ -130,30 +138,62 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
   };
 
   const handleOpenAddModal = () => {
+    setError(null);
+    setEditingChild(null);
+    setSelectedUserId('');
+    setNewChildData({ nom: '', prenom: '', dateNaissance: '' });
+    setHasSecondParent(false);
+    setSecondParentUserId('');
     setShowAddModal(true);
     fetchAllUsers();
   };
 
-  const handleAddChild = async () => {
+  const handleOpenEditModal = (child: Child) => {
+    setError(null);
+    setEditingChild(child);
+    setSelectedUserId(child.userId);
+    setNewChildData({
+      nom: child.nom,
+      prenom: child.prenom,
+      dateNaissance: child.dateNaissance,
+    });
+    const secondParentId = child.secondParentUserId || (child.parentUserId && child.parentUserId !== child.userId ? child.parentUserId : '');
+    setSecondParentUserId(secondParentId);
+    setHasSecondParent(Boolean(secondParentId));
+    setShowAddModal(true);
+    fetchAllUsers();
+  };
+
+  const handleSaveChild = async () => {
     if (!selectedUserId || !newChildData.nom || !newChildData.prenom || !newChildData.dateNaissance) {
       setError('Tous les champs sont requis');
+      return;
+    }
+    if (hasSecondParent && !secondParentUserId) {
+      setError('Veuillez sélectionner le second parent pompier.');
       return;
     }
 
     setActionLoading(true);
     setError(null);
     try {
-      await createChildForMember(selectedUserId, newChildData);
+      await saveChildForMember(selectedUserId, {
+        ...newChildData,
+        secondParentUserId: hasSecondParent ? secondParentUserId : undefined,
+      }, editingChild?.id);
 
       await fetchAllChildren();
       setShowAddModal(false);
+      setEditingChild(null);
       setNewChildData({ nom: '', prenom: '', dateNaissance: '' });
       setSelectedUserId('');
-      setSuccessMessage('Enfant ajouté avec succès');
+      setHasSecondParent(false);
+      setSecondParentUserId('');
+      setSuccessMessage(editingChild ? 'Enfant modifié avec succès' : 'Enfant ajouté avec succès');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
-      console.error('Error adding child:', error);
-      setError(error instanceof Error ? error.message : 'Erreur d\'ajout');
+      console.error('Error saving child:', error);
+      setError(error instanceof Error ? error.message : editingChild ? 'Erreur de modification' : 'Erreur d\'ajout');
     } finally {
       setActionLoading(false);
     }
@@ -325,10 +365,13 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
               <div className="sticky top-0 bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-6 rounded-t-2xl flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <UserPlus className="w-8 h-8" />
-                  <h2 className="text-2xl">Ajouter un enfant</h2>
+                  <h2 className="text-2xl">{editingChild ? 'Modifier un enfant' : 'Ajouter un enfant'}</h2>
                 </div>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setEditingChild(null);
+                  }}
                   className="text-white hover:bg-white/20 rounded-full p-2 transition"
                   aria-label="Fermer"
                 >
@@ -345,6 +388,7 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
                     <select
                       value={selectedUserId}
                       onChange={(e) => setSelectedUserId(e.target.value)}
+                      disabled={Boolean(editingChild)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent outline-none"
                     >
                       <option value="">Sélectionnez un parent</option>
@@ -396,22 +440,57 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent outline-none"
                     />
                   </div>
+
+                  <div>
+                    <label className="mb-3 flex items-center gap-3 text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={hasSecondParent}
+                        onChange={(e) => {
+                          setHasSecondParent(e.target.checked);
+                          if (!e.target.checked) setSecondParentUserId('');
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-green-700 focus:ring-green-700"
+                      />
+                      Le deuxième parent est aussi pompier
+                    </label>
+                    {hasSecondParent && (
+                      <select
+                        value={secondParentUserId}
+                        onChange={(e) => setSecondParentUserId(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent outline-none"
+                        required
+                      >
+                        <option value="">Sélectionnez un deuxième parent pompier</option>
+                        {allUsers
+                          .filter((user) => user.id !== selectedUserId && ['spp', 'spv', 'anciens-sp', 'sssm'].includes(user.fonction || ''))
+                          .map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.name} ({user.email})
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-8 flex justify-end gap-3">
                   <button
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingChild(null);
+                    }}
                     className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                     disabled={actionLoading}
                   >
                     Annuler
                   </button>
                   <button
-                    onClick={handleAddChild}
+                    onClick={handleSaveChild}
                     disabled={actionLoading}
                     className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {actionLoading ? 'Ajout en cours...' : 'Ajouter l\'enfant'}
+                    {actionLoading ? 'Enregistrement...' : editingChild ? 'Enregistrer les modifications' : 'Ajouter l\'enfant'}
                   </button>
                 </div>
               </div>
@@ -484,7 +563,10 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{child.userName}</div>
+                        <div className="text-sm text-gray-900">{child.parentName || child.userName}</div>
+                        {child.secondParentName && (
+                          <div className="text-xs text-gray-500">2e parent : {child.secondParentName}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-600">{child.userEmail}</div>
@@ -506,6 +588,14 @@ export function ListeEnfants({ accessToken, userRole }: ListeEnfantsProps) {
                       </td>
                       {isAdmin && (
                         <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => handleOpenEditModal(child)}
+                            disabled={actionLoading}
+                            className="mr-2 text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-blue-50 transition"
+                            title="Modifier cet enfant"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
                           <button
                             onClick={() => handleDeleteChild(child.userId, child.id, `${child.prenom} ${child.nom}`)}
                             disabled={actionLoading}

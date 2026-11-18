@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, X, Users, Lock, AlertCircle, UserPlus, Trash2 } from 'lucide-react';
+import { Calendar, X, Users, Lock, AlertCircle, UserPlus, Trash2, Baby } from 'lucide-react';
 import {
   addManualSainteBarbeReservation,
   getEventRegistrationStatus,
+  getMyChildren,
   getMySainteBarbeRegistration,
   listSainteBarbeTables,
   removeSainteBarbeReservation,
   saveSainteBarbeRegistration,
+  ChildRecord,
+  SainteBarbeReservation,
 } from '../utils/firebase/siteData';
 
 interface InscriptionsSainteBarbeModalProps {
@@ -32,10 +35,15 @@ interface RegistrationStatus {
   closedMessage: string;
 }
 
+const MAX_GUESTS = 2;
+
 export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToken }: InscriptionsSainteBarbeModalProps) {
   const [isRegistered, setIsRegistered] = useState(false);
-  const MAX_GUESTS = 2;
-  const [numberOfGuests, setNumberOfGuests] = useState(1);
+  const [numberOfAdults, setNumberOfAdults] = useState(1);
+  const [children, setChildren] = useState<ChildRecord[]>([]);
+  const [areChildrenLoading, setAreChildrenLoading] = useState(true);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const numberOfGuests = numberOfAdults + selectedChildIds.length;
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,8 +51,8 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus>({ isOpen: false, closedMessage: 'Chargement...' });
-  const [myRegistration, setMyRegistration] = useState<any>(null);
-  const [myTable, setMyTable] = useState<any>(null);
+  const [myRegistration, setMyRegistration] = useState<(SainteBarbeReservation & { tableNumber: number }) | null>(null);
+  const [myTable, setMyTable] = useState<Table | null>(null);
   
   // Admin states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -56,6 +64,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
 
   useEffect(() => {
     if (isOpen) {
+      setError(null);
       fetchRegistrationStatus();
       fetchMyRegistration();
       fetchTables();
@@ -71,21 +80,33 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
   };
 
   const fetchMyRegistration = async () => {
+    setAreChildrenLoading(true);
     try {
-      const registration = await getMySainteBarbeRegistration(user.id);
+      const [registration, myChildren, allTables] = await Promise.all([
+        getMySainteBarbeRegistration(user.id),
+        getMyChildren(),
+        listSainteBarbeTables(),
+      ]);
+      setChildren(myChildren);
       if (registration) {
-        const allTables = await listSainteBarbeTables();
-        const table = allTables.find((item) => item.tableNumber === (registration as any).tableNumber);
+        const table = allTables.find((item) => item.tableNumber === registration.tableNumber);
         setMyRegistration(registration);
         setMyTable(table || null);
-        setNumberOfGuests(registration.numberOfGuests);
-        setSelectedTable((registration as any).tableNumber);
+        const registeredChildIds = (registration.childIds || []).filter((id) => myChildren.some((child) => child.id === id));
+        setNumberOfAdults(registration.numberOfAdults ?? registration.numberOfGuests - (registration.childIds?.length || 0));
+        setSelectedChildIds(registeredChildIds);
+        setSelectedTable(registration.tableNumber);
       } else {
         setMyRegistration(null);
         setMyTable(null);
+        setNumberOfAdults(1);
+        setSelectedChildIds([]);
       }
     } catch (error) {
       console.error('Error fetching my registration:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de votre inscription');
+    } finally {
+      setAreChildrenLoading(false);
     }
   };
 
@@ -114,8 +135,8 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
       return;
     }
 
-    if (numberOfGuests < 1 || numberOfGuests > MAX_GUESTS) {
-      setError(`Le nombre de personnes doit être entre 1 et ${MAX_GUESTS}`);
+    if (numberOfAdults < 1 || numberOfAdults > 2 || numberOfGuests > 10) {
+      setError('Une inscription doit inclure 1 ou 2 adultes et ne peut pas dépasser 10 personnes.');
       return;
     }
 
@@ -123,7 +144,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
     setError(null);
 
     try {
-      await saveSainteBarbeRegistration(selectedTable, numberOfGuests);
+      await saveSainteBarbeRegistration(selectedTable, numberOfAdults, selectedChildIds);
       setIsRegistered(true);
       setSuccessMessage('Inscription réussie !');
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -201,7 +222,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <Calendar className="w-8 h-8 text-red-700" />
-            <h2 className="text-3xl text-gray-900">Sainte-Barbe 2024</h2>
+            <h2 className="text-3xl text-gray-900">Sainte-Barbe</h2>
           </div>
           <button
             onClick={onClose}
@@ -244,6 +265,18 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
                         <p>
                           <span className="font-medium">Vos places :</span> {myRegistration.numberOfGuests} personne(s)
                         </p>
+                        <p>
+                          <span className="font-medium">Adultes :</span> {myRegistration.numberOfAdults ?? myRegistration.numberOfGuests - (myRegistration.childIds?.length || 0)}
+                        </p>
+                        {myRegistration.childIds && myRegistration.childIds.length > 0 && (
+                          <p>
+                            <span className="font-medium">Enfants :</span> {myRegistration.childIds
+                              .map((id) => children.find((child) => child.id === id))
+                              .filter((child): child is ChildRecord => Boolean(child))
+                              .map((child) => `${child.prenom} ${child.nom}`)
+                              .join(', ')}
+                          </p>
+                        )}
                         <p className="text-xs text-green-700 mt-2 italic">
                           Vous pouvez changer de table en sélectionnant une autre table ci-dessous.
                         </p>
@@ -256,17 +289,55 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
               <form onSubmit={handleSubmit} className="mb-6">
                 <div className="mb-6">
                   <label className="block text-gray-700 mb-2">
-                    Nombre de personnes *
+                    Nombre d'adultes (vous inclus) *
                   </label>
                   <select
-                    value={numberOfGuests}
-                    onChange={(e) => setNumberOfGuests(parseInt(e.target.value))}
+                    value={numberOfAdults}
+                    onChange={(e) => setNumberOfAdults(parseInt(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent"
                     required
                   >
-                    <option value={1}>1 personne</option>
-                    <option value={2}>2 personnes</option>
+                    <option value={1}>1 adulte</option>
+                    <option value={2}>2 adultes</option>
                   </select>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-gray-700 mb-2">
+                    Enfants qui participeront
+                  </label>
+                  {areChildrenLoading ? (
+                    <p className="text-sm text-gray-600">Chargement des enfants...</p>
+                  ) : children.length > 0 ? (
+                    <div className="space-y-2">
+                      {children.map((child) => (
+                        <label
+                          key={child.id}
+                          className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedChildIds.includes(child.id)}
+                            onChange={(event) => {
+                              setSelectedChildIds((current) => event.target.checked
+                                ? [...current, child.id]
+                                : current.filter((id) => id !== child.id));
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-700"
+                          />
+                          <Baby className="w-5 h-5 text-red-700 flex-shrink-0" />
+                          <span className="text-gray-800">{child.prenom} {child.nom}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Aucun enfant n'est associé à votre compte. Vous pouvez les déclarer dans la rubrique « Mes enfants ».
+                    </p>
+                  )}
+                  <p className={`mt-2 text-sm ${numberOfGuests > 10 ? 'text-red-700' : 'text-gray-600'}`}>
+                    Total : {numberOfGuests} personne(s) — 10 places maximum par table.
+                  </p>
                 </div>
 
                 <div className="mb-6">
@@ -383,7 +454,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || !selectedTable}
+                  disabled={isSubmitting || !selectedTable || numberOfGuests > 10}
                   className="w-full bg-red-700 text-white py-3 rounded-lg hover:bg-red-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'En cours...' : isRegistered ? 'Modifier mon inscription' : 'S\'inscrire'}

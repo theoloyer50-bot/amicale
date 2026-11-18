@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Baby, Plus, Edit, Trash2, Save, X } from 'lucide-react';
-import { getApprovedMembers, getMyChildren, saveMyChild, deleteMyChild } from '../utils/firebase/siteData';
+import { getApprovedFirefighters, getMyChildren, saveMyChild, deleteMyChild } from '../utils/firebase/siteData';
 
 interface Child {
   id: string;
@@ -13,6 +13,8 @@ interface Child {
   age: number;
   parentUserId?: string;
   parentName?: string;
+  secondParentUserId?: string;
+  secondParentName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,18 +23,16 @@ interface User {
   userId: string;
   email: string;
   name: string;
-  status: string;
-  role: string;
 }
 
 interface MesEnfantsModalProps {
   isOpen: boolean;
   onClose: () => void;
   accessToken: string;
-  userName: string;
+  user: { id: string; email: string; name?: string };
 }
 
-export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesEnfantsModalProps) {
+export function MesEnfantsModal({ isOpen, onClose, accessToken, user }: MesEnfantsModalProps) {
   const [children, setChildren] = useState<Child[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +44,8 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
   const [dateNaissance, setDateNaissance] = useState('');
-  const [parentUserId, setParentUserId] = useState('');
+  const [hasSecondParent, setHasSecondParent] = useState(false);
+  const [secondParentUserId, setSecondParentUserId] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -55,13 +56,11 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
 
   const fetchUsers = async () => {
     try {
-      const members = await getApprovedMembers();
+      const members = await getApprovedFirefighters();
       setUsers(members.map((member) => ({
         userId: member.userId,
         email: member.email,
         name: member.name,
-        status: member.status,
-        role: member.role,
       })));
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -86,16 +85,24 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
       setError('Veuillez remplir tous les champs correctement');
       return;
     }
+    if (hasSecondParent && !secondParentUserId) {
+      setError('Veuillez sélectionner le second parent pompier.');
+      return;
+    }
 
     try {
       setError(null);
-      await saveMyChild({ nom, prenom, dateNaissance, parentUserId: parentUserId || undefined });
+      await saveMyChild({
+        nom, prenom, dateNaissance,
+        secondParentUserId: hasSecondParent ? secondParentUserId : undefined,
+      });
 
       // Reset form and refresh list
       setNom('');
       setPrenom('');
       setDateNaissance('');
-      setParentUserId('');
+      setHasSecondParent(false);
+      setSecondParentUserId('');
       setShowAddForm(false);
       await fetchChildren();
     } catch (error) {
@@ -109,16 +116,24 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
       setError('Veuillez remplir tous les champs correctement');
       return;
     }
+    if (hasSecondParent && !secondParentUserId) {
+      setError('Veuillez sélectionner le second parent pompier.');
+      return;
+    }
 
     try {
       setError(null);
-      await saveMyChild({ nom, prenom, dateNaissance, parentUserId: parentUserId || undefined }, childId);
+      await saveMyChild({
+        nom, prenom, dateNaissance,
+        secondParentUserId: hasSecondParent ? secondParentUserId : undefined,
+      }, childId);
 
       // Reset form and refresh list
       setNom('');
       setPrenom('');
       setDateNaissance('');
-      setParentUserId('');
+      setHasSecondParent(false);
+      setSecondParentUserId('');
       setEditingId(null);
       await fetchChildren();
     } catch (error) {
@@ -147,7 +162,9 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
     setNom(child.nom);
     setPrenom(child.prenom);
     setDateNaissance(child.dateNaissance);
-    setParentUserId(child.parentUserId || '');
+    const secondParentId = child.secondParentUserId || (child.parentUserId && child.parentUserId !== child.userId ? child.parentUserId : '');
+    setSecondParentUserId(secondParentId);
+    setHasSecondParent(Boolean(secondParentId));
     setShowAddForm(false);
   };
 
@@ -156,7 +173,8 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
     setNom('');
     setPrenom('');
     setDateNaissance('');
-    setParentUserId('');
+    setHasSecondParent(false);
+    setSecondParentUserId('');
   };
 
   const startAdd = () => {
@@ -165,7 +183,8 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
     setNom('');
     setPrenom('');
     setDateNaissance('');
-    setParentUserId('');
+    setHasSecondParent(false);
+    setSecondParentUserId('');
   };
 
   if (!isOpen) return null;
@@ -178,7 +197,7 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
             <Baby className="w-8 h-8 text-red-700" />
             <div>
               <h2 className="text-3xl text-gray-900">Mes Enfants</h2>
-              <p className="text-sm text-gray-600 mt-1">Bienvenue {userName} !</p>
+              <p className="text-sm text-gray-600 mt-1">Bienvenue {user.name || user.email} !</p>
             </div>
           </div>
           <button
@@ -255,24 +274,46 @@ export function MesEnfantsModal({ isOpen, onClose, accessToken, userName }: MesE
                   />
                 </div>
 
-                <div>
+              </div>
+
+              <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                <p className="text-sm text-gray-600">Parent principal</p>
+                <p className="text-gray-900">{user.name || user.email} (compte connecté)</p>
+              </div>
+
+              <label className="mb-4 flex items-center gap-3 text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={hasSecondParent}
+                  onChange={(e) => {
+                    setHasSecondParent(e.target.checked);
+                    if (!e.target.checked) setSecondParentUserId('');
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-700"
+                />
+                Le deuxième parent est aussi pompier
+              </label>
+
+              {hasSecondParent && (
+                <div className="mb-4">
                   <label className="block text-gray-700 mb-2">
-                    Parent (optionnel)
+                    Deuxième parent pompier *
                   </label>
                   <select
-                    value={parentUserId}
-                    onChange={(e) => setParentUserId(e.target.value)}
+                    value={secondParentUserId}
+                    onChange={(e) => setSecondParentUserId(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent outline-none"
+                    required
                   >
-                    <option value="">Aucun parent assigné</option>
-                    {users.map((user) => (
-                      <option key={user.userId} value={user.userId}>
-                        {user.name} ({user.email})
+                    <option value="">Sélectionnez un pompier</option>
+                    {users.filter((member) => member.userId !== user.id).map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.name} ({member.email})
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-3">
                 <button

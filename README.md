@@ -45,7 +45,8 @@
 
   - La réinitialisation de mot de passe envoie un e-mail Firebase ; le panneau ne peut pas définir directement le mot de passe d'un autre utilisateur.
   - « Désactiver » bloque l'accès au site, mais ne supprime pas le compte Firebase Authentication. La suppression d'un compte Auth nécessite un backend de confiance.
-  - Sainte-Barbe utilise cinq emplacements de réservation par table (jusqu'à dix personnes si chaque réservation inclut deux personnes). Cette limite est vérifiée par les règles de la base sans fonction serveur.
+  - Sainte-Barbe utilise cinq emplacements de réservation par table, dans la limite de dix personnes au total par table. Une inscription peut inclure un ou deux adultes ainsi que les enfants cochés depuis le compte associé ; les règles de la base limitent chaque inscription à dix personnes.
+  - Un enfant est rattaché au compte qui le déclare ; un second parent membre pompier approuvé peut également être associé.
 
   Les anciens comptes et données des anciennes versions ne sont pas migrés automatiquement. Les comptes doivent être créés dans Firebase Authentication et disposer d'un profil correspondant dans Realtime Database.
   

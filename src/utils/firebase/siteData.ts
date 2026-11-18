@@ -15,6 +15,8 @@ export interface ChildRecord {
   age: number;
   parentUserId?: string;
   parentName?: string;
+  secondParentUserId?: string;
+  secondParentName?: string;
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
@@ -32,6 +34,8 @@ export interface SainteBarbeReservation {
   userId: string;
   name: string;
   numberOfGuests: number;
+  numberOfAdults?: number;
+  childIds?: string[];
   tableNumber?: number;
   slotNumber?: number;
   addedManually?: boolean;
@@ -92,6 +96,22 @@ export async function getApprovedMembers(): Promise<MemberAccount[]> {
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 }
 
+export async function getApprovedFirefighters(): Promise<MemberAccount[]> {
+  const members = await getApprovedMembers();
+  return members.filter((member) => ['spp', 'spv', 'anciens-sp', 'sssm'].includes(member.fonction || ''));
+}
+
+const getSecondParent = async (uid: string, secondParentUserId?: string) => {
+  if (!secondParentUserId) return {};
+  if (secondParentUserId === uid) throw new Error('Le second parent doit être un autre membre.');
+  const snapshot = await get(ref(firebaseDatabase, `kv/memberDirectory/${secondParentUserId}`));
+  const secondParent = snapshot.val() as Pick<MemberAccount, 'status' | 'fonction' | 'name'> | null;
+  if (secondParent?.status !== 'approved' || !['spp', 'spv', 'anciens-sp', 'sssm'].includes(secondParent.fonction || '')) {
+    throw new Error('Le second parent doit être un pompier membre approuvé.');
+  }
+  return { secondParentUserId, secondParentName: secondParent.name };
+};
+
 export async function getMyChildren(): Promise<ChildRecord[]> {
   const uid = currentUid();
   const snapshot = await get(ref(firebaseDatabase, `kv/children/${uid}`));
@@ -99,7 +119,7 @@ export async function getMyChildren(): Promise<ChildRecord[]> {
   return Object.values(values) as ChildRecord[];
 }
 
-export async function saveMyChild(input: Pick<ChildRecord, 'nom' | 'prenom' | 'dateNaissance' | 'parentUserId'>, childId?: string): Promise<void> {
+export async function saveMyChild(input: Pick<ChildRecord, 'nom' | 'prenom' | 'dateNaissance' | 'secondParentUserId'>, childId?: string): Promise<void> {
   const uid = currentUid();
   const accountSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`));
   const account = accountSnapshot.val() as MemberAccount | null;
@@ -107,6 +127,8 @@ export async function saveMyChild(input: Pick<ChildRecord, 'nom' | 'prenom' | 'd
   const now = new Date().toISOString();
   const existingSnapshot = childId ? await get(ref(firebaseDatabase, `kv/children/${uid}/${childId}`)) : null;
   const existing = existingSnapshot?.val() as ChildRecord | null;
+  if (childId && existing?.userId !== uid) throw new Error('Enfant introuvable dans votre compte.');
+  const secondParent = await getSecondParent(uid, input.secondParentUserId);
   const id = childId || push(ref(firebaseDatabase, `kv/children/${uid}`)).key!;
   const child: ChildRecord = {
     id,
@@ -117,17 +139,13 @@ export async function saveMyChild(input: Pick<ChildRecord, 'nom' | 'prenom' | 'd
     prenom: input.prenom.trim(),
     dateNaissance: input.dateNaissance,
     age: calculateAge(input.dateNaissance),
-    ...(input.parentUserId ? { parentUserId: input.parentUserId } : {}),
+    parentUserId: uid,
+    parentName: account.name,
+    ...secondParent,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
   if (!child.nom || !child.prenom) throw new Error('Nom et prénom obligatoires.');
-  if (input.parentUserId) {
-    const parentSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${input.parentUserId}`));
-    const parent = parentSnapshot.val() as MemberAccount | null;
-    if (parent?.status !== 'approved') throw new Error('Le parent choisi n’est pas un membre approuvé.');
-    child.parentName = parent.name;
-  }
   await set(ref(firebaseDatabase, `kv/children/${uid}/${id}`), child);
 }
 
@@ -142,17 +160,28 @@ export async function listChildrenForModerators(): Promise<ChildRecord[]> {
   return Object.values(groups).flatMap((children: any) => Object.values(children || {})) as ChildRecord[];
 }
 
-export async function createChildForMember(userId: string, input: Pick<ChildRecord, 'nom' | 'prenom' | 'dateNaissance'>): Promise<void> {
+export async function saveChildForMember(
+  userId: string,
+  input: Pick<ChildRecord, 'nom' | 'prenom' | 'dateNaissance' | 'secondParentUserId'>,
+  childId?: string,
+): Promise<void> {
   await accountIsAdmin();
   const targetSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${userId}`));
   const target = targetSnapshot.val() as MemberAccount | null;
-  if (!target || target.status !== 'approved') throw new Error('Membre introuvable ou non approuvé.');
-  const id = push(ref(firebaseDatabase, `kv/children/${userId}`)).key!;
+  if (!target || (!childId && target.status !== 'approved')) throw new Error('Membre introuvable ou non approuvé.');
+  const existingSnapshot = childId ? await get(ref(firebaseDatabase, `kv/children/${userId}/${childId}`)) : null;
+  const existing = existingSnapshot?.val() as ChildRecord | null;
+  if (childId && existing?.userId !== userId) throw new Error('Enfant introuvable pour ce membre.');
+  const secondParent = await getSecondParent(userId, input.secondParentUserId);
+  const id = childId || push(ref(firebaseDatabase, `kv/children/${userId}`)).key!;
   const now = new Date().toISOString();
   const child: ChildRecord = {
     id, userId, userName: target.name, userEmail: target.email,
+    parentUserId: userId, parentName: target.name,
     nom: input.nom.trim(), prenom: input.prenom.trim(), dateNaissance: input.dateNaissance,
-    age: calculateAge(input.dateNaissance), createdAt: now, updatedAt: now, createdBy: 'admin',
+    age: calculateAge(input.dateNaissance), ...secondParent,
+    createdAt: existing?.createdAt || now, updatedAt: now,
+    ...(existing?.createdBy ? { createdBy: existing.createdBy } : { createdBy: 'admin' }),
   };
   if (!child.nom || !child.prenom) throw new Error('Nom et prénom obligatoires.');
   await set(ref(firebaseDatabase, `kv/children/${userId}/${id}`), child);
@@ -208,7 +237,7 @@ export async function listSainteBarbeTables(): Promise<SainteBarbeTable[]> {
   });
 }
 
-export async function getMySainteBarbeRegistration(uid = currentUid()): Promise<SainteBarbeReservation | null> {
+export async function getMySainteBarbeRegistration(uid = currentUid()): Promise<(SainteBarbeReservation & { tableNumber: number; slotNumber: number }) | null> {
   const indexSnapshot = await get(ref(firebaseDatabase, `kv/sainteBarbeUserIndex/${uid}`));
   const index = indexSnapshot.val() as { tableKey: string; slotKey: string } | null;
   if (!index) return null;
@@ -218,34 +247,54 @@ export async function getMySainteBarbeRegistration(uid = currentUid()): Promise<
     : null;
 }
 
-export async function saveSainteBarbeRegistration(tableNumber: number, numberOfGuests: number): Promise<void> {
+export async function saveSainteBarbeRegistration(tableNumber: number, numberOfAdults: number, childIds: string[]): Promise<void> {
   const uid = currentUid();
-  if (!Number.isInteger(tableNumber) || tableNumber < 1 || ![1, 2].includes(numberOfGuests)) throw new Error('Inscription invalide.');
+  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 15 || ![1, 2].includes(numberOfAdults)) {
+    throw new Error('Inscription invalide.');
+  }
+  if (!Array.isArray(childIds) || childIds.some((id) => typeof id !== 'string' || !id) || new Set(childIds).size !== childIds.length) {
+    throw new Error('Sélection des enfants invalide.');
+  }
   const status = await getEventRegistrationStatus('sainte-barbe');
   if (!status.isOpen) throw new Error(status.closedMessage || 'Les inscriptions sont fermées.');
-  const profileSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`));
+  const [profileSnapshot, childrenSnapshot] = await Promise.all([
+    get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`)),
+    get(ref(firebaseDatabase, `kv/children/${uid}`)),
+  ]);
   const profile = profileSnapshot.val() as MemberAccount | null;
   if (profile?.status !== 'approved') throw new Error('Compte non approuvé.');
+  const childrenById = (childrenSnapshot.val() || {}) as Record<string, ChildRecord>;
+  childIds.forEach((id) => {
+    const child = childrenById[id];
+    if (!child || child.userId !== uid) throw new Error('Un enfant sélectionné est introuvable dans votre compte.');
+  });
+  const numberOfGuests = numberOfAdults + childIds.length;
+  if (numberOfGuests > 10) throw new Error('Une inscription ne peut pas dépasser 10 personnes.');
 
   const indexRef = ref(firebaseDatabase, `kv/sainteBarbeUserIndex/${uid}`);
   const indexSnapshot = await get(indexRef);
   const oldIndex = indexSnapshot.val() as { tableKey: string; slotKey: string } | null;
   const now = new Date().toISOString();
+  const tableSnapshot = await get(ref(firebaseDatabase, tablePath(tableNumber)));
+  const slots = (tableSnapshot.val()?.slots || {}) as Record<string, SainteBarbeReservation>;
+  const oldSlot = oldIndex && Number(oldIndex.tableKey) === tableNumber ? slots[oldIndex.slotKey] : null;
 
-  if (oldIndex && Number(oldIndex.tableKey) === tableNumber) {
-    const reservationRef = ref(firebaseDatabase, `${tablePath(tableNumber)}/slots/${oldIndex.slotKey}`);
-    const oldSnapshot = await get(reservationRef);
-    if (oldSnapshot.exists()) {
-      await set(reservationRef, {
-        ...oldSnapshot.val(), userId: uid, name: profile.name, email: profile.email,
-        numberOfGuests, tableNumber, slotNumber: Number(oldIndex.slotKey), registeredAt: now,
-      });
-      return;
+  if (oldIndex && oldSlot?.userId === uid) {
+    const currentSeats = Object.values(slots).reduce((sum, reservation) => sum + Number(reservation.numberOfGuests || 0), 0);
+    if (currentSeats - Number(oldSlot.numberOfGuests || 0) + numberOfGuests > 10) {
+      throw new Error('Cette table ne dispose pas d’assez de places.');
     }
+    const reservationRef = ref(firebaseDatabase, `${tablePath(tableNumber)}/slots/${oldIndex.slotKey}`);
+    await set(reservationRef, {
+      ...oldSlot, userId: uid, name: profile.name, email: profile.email,
+      numberOfAdults, childIds, numberOfGuests,
+      tableNumber, slotNumber: Number(oldIndex.slotKey), registeredAt: now,
+    });
+    return;
   }
 
-  const tableSnapshot = await get(ref(firebaseDatabase, tablePath(tableNumber)));
-  const slots = tableSnapshot.val()?.slots || {};
+  const currentSeats = Object.values(slots).reduce((sum, reservation) => sum + Number(reservation.numberOfGuests || 0), 0);
+  if (currentSeats + numberOfGuests > 10) throw new Error('Cette table ne dispose pas d’assez de places.');
   const availableSlots = [1, 2, 3, 4, 5].filter((slot) => !slots[String(slot)]);
   if (!availableSlots.length) throw new Error('Cette table est complète. Choisissez une autre table.');
 
@@ -263,6 +312,8 @@ export async function saveSainteBarbeRegistration(tableNumber: number, numberOfG
         userId: uid,
         name: profile.name,
         email: profile.email,
+        numberOfAdults,
+        childIds,
         numberOfGuests,
         tableNumber,
         slotNumber,
