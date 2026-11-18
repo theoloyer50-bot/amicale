@@ -1,63 +1,73 @@
 .member-counts {
-  padding: 32px 20px;
-  background-color: #f3f4f6;
+  padding: 42px 20px;
+  border-bottom: 1px solid #e8edf4;
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
 }
 
 .member-counts > h2 {
-  margin: 0 0 36px;
-  color: #12344a;
-  font-size: 40px;
+  margin: 0 0 26px;
+  color: #172033;
+  font-size: clamp(1.8rem, 3vw, 2.35rem);
   font-weight: 700;
+  letter-spacing: -0.035em;
   text-align: center;
 }
 
 .member-count-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  max-width: 1080px;
+  gap: 18px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
 .member-count-card {
   display: flex;
-  min-height: 270px;
+  min-height: 220px;
   flex-direction: column;
   align-items: center;
-  padding: 24px 16px;
-  border-radius: 16px;
+  padding: 24px 18px;
+  border: 1px solid #e5eaf1;
+  border-radius: 20px;
   background: #fff;
-  box-shadow: 0 10px 24px rgb(0 0 0 / 10%);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 5%);
   text-align: center;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.member-count-card:hover {
+  transform: translateY(-4px);
+  border-color: #fecaca;
+  box-shadow: 0 16px 30px rgb(127 29 29 / 10%);
 }
 
 .member-count-card > svg {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 12px;
-  color: #e63946;
-  stroke-width: 2.5;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  color: #b91c1c;
+  stroke-width: 2.1;
 }
 
 .member-count-card > h3 {
   margin: 0;
-  color: #12344a;
+  color: #172033;
   font-size: 20px;
   font-weight: 700;
 }
 
 .member-count-number {
-  margin: 14px 0 4px;
-  color: #a00000;
-  font-size: 34px;
+  margin: 10px 0 4px;
+  color: #991b1b;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1.15;
 }
 
 .member-count-description {
   margin: 4px 0 0;
-  color: #374151;
-  font-size: 15px;
+  color: #64748b;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -81,10 +91,46 @@
 
 @media (max-width: 420px) {
   .member-counts {
-    padding: 28px 14px;
+    padding: 30px 14px;
   }
 
   .member-count-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .member-count-card {
+    min-height: 185px;
+    padding: 18px 10px;
+    border-radius: 16px;
+  }
+
+  .member-count-card > svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .member-count-card > h3 {
+    font-size: 17px;
+  }
+
+  .member-count-number {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 350px) {
+  .member-count-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-count-card {
+    transition: none;
+  }
+
+  .member-count-card:hover {
+    transform: none;
   }
 }

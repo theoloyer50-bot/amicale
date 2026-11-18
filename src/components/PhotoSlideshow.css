@@ -1,6 +1,6 @@
 .photo-gallery {
-  padding: 20px 0;
-  background-color: #111827;
+  padding: 24px 0;
+  background: linear-gradient(110deg, #111827, #1f2937 50%, #111827);
 }
 
 .photo-gallery-viewport {
@@ -35,9 +35,9 @@
   flex: 0 0 auto;
   width: clamp(240px, 26vw, 360px);
   height: clamp(180px, 20vw, 260px);
-  border-radius: 8px;
+  border-radius: 16px;
   background-color: #1f2937;
   object-fit: contain;
-  box-shadow: 0 4px 10px rgb(0 0 0 / 25%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 28%);
 }
 

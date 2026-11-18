@@ -11,14 +11,14 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="bg-red-700 text-white sticky top-0 z-50 shadow-lg">
+    <header className="site-header bg-red-700 text-white sticky top-0 z-50 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center space-x-4">
             <img
               src="/PHOTO-2026-02-06-09-47-45.jpg"
               alt="Centre de Secours de Tourlaville"
-              className="h-16 w-12 sm:h-[4.5rem] sm:w-[3.375rem] object-contain rounded bg-white shadow-sm"
+              className="site-header-logo h-16 w-12 sm:h-[4.5rem] sm:w-[3.375rem] object-contain rounded bg-white shadow-sm"
             />
             <div>
               <h1 className="text-xl sm:text-2xl">Amicale SP Tourlaville</h1>
@@ -28,7 +28,7 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
           <div className="flex items-center space-x-4">
             {/* User menu */}
             {user ? (
-              <div className="hidden md:flex items-center space-x-3">
+              <div className="site-header-user hidden md:flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
                   <User className="w-5 h-5" />
                   <span className="text-sm">{user.email}</span>
@@ -54,7 +54,9 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2"
+              className="site-menu-toggle md:hidden p-2"
+              aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>

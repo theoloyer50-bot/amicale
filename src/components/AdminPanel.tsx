@@ -268,15 +268,15 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   // Vue simplifiée pour les superviseurs - uniquement inscrits Noël
   if (userRole === 'superviseur') {
     return (
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="site-admin-panel bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center mb-6">
+          <div className="site-admin-panel-heading flex items-center mb-6">
             <Eye className="w-6 h-6 text-red-700 mr-2" />
             <h2 className="text-2xl text-gray-900">Panneau Superviseur</h2>
           </div>
           
           {/* Onglets pour superviseur */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+          <div className="site-admin-tabs site-admin-tabs--segmented flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
             <button
               onClick={() => setActiveTab('noel-registrations')}
               className={`flex-1 px-4 py-2 rounded-md transition ${
@@ -313,9 +313,9 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   }
 
   return (
-    <div className="bg-white border-b border-gray-200 shadow-sm">
+    <div className="site-admin-panel bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="site-admin-panel-heading flex items-center justify-between mb-6">
           <div className="flex items-center">
             <Shield className="w-6 h-6 text-red-700 mr-2" />
             <h2 className="text-2xl text-gray-900">Panneau Administrateur</h2>
@@ -334,7 +334,7 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
 
         {/* Tabs - défilable sur téléphone */}
         <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
-          <div className="flex gap-4 border-b border-gray-200 px-4 sm:px-0 min-w-max sm:min-w-full">
+          <div className="site-admin-tabs flex gap-4 border-b border-gray-200 px-4 sm:px-0 min-w-max sm:min-w-full">
             <button
               onClick={() => setActiveTab('pending')}
               className={`px-4 py-2 -mb-px whitespace-nowrap transition ${

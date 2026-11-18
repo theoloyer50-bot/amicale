@@ -69,9 +69,9 @@ export function MemberArea({ accessToken, user, userStatus, onChangePassword }: 
   };
 
   return (
-    <section id="mon-espace" className="py-12 bg-gradient-to-b from-white to-gray-50">
+    <section id="mon-espace" className="member-area py-12 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        <div className="member-area-heading text-center mb-12">
           <h2 className="text-3xl sm:text-4xl text-gray-900 mb-4">
             Espace Adhérent
           </h2>
@@ -80,37 +80,37 @@ export function MemberArea({ accessToken, user, userStatus, onChangePassword }: 
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="member-area-grid grid md:grid-cols-2 gap-8">
           {/* Informations personnelles */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="member-profile-card bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center space-x-3 mb-6">
               <User className="w-6 h-6 text-red-700" />
               <h3 className="text-2xl text-gray-900">Informations personnelles</h3>
             </div>
             <div className="space-y-3">
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="member-profile-field p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Nom</p>
                 <p className="text-gray-900">{user.name || 'Non renseigné'}</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="member-profile-field p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Email</p>
                 <p className="text-gray-900">{user.email}</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="member-profile-field p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-2 mb-1">
                   <Shield className="w-4 h-4 text-gray-600" />
                   <p className="text-sm text-gray-600">Rôle</p>
                 </div>
                 <p className="text-gray-900">{getRoleLabel(user.role)}</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="member-profile-field p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-2 mb-1">
                   <Calendar className="w-4 h-4 text-gray-600" />
                   <p className="text-sm text-gray-600">Date de création</p>
                 </div>
                 <p className="text-gray-900">{formatDate(userStatus?.createdAt)}</p>
               </div>
-              <div className={`p-4 rounded-lg border ${
+              <div className={`member-profile-field p-4 rounded-lg border ${
                 statusInfo.color === 'green' ? 'bg-green-50 border-green-200' :
                 statusInfo.color === 'yellow' ? 'bg-yellow-50 border-yellow-200' :
                 'bg-red-50 border-red-200'
@@ -146,7 +146,7 @@ export function MemberArea({ accessToken, user, userStatus, onChangePassword }: 
           </div>
 
           {/* Documents: afficher directement la liste ici */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="member-documents-card bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center space-x-3 mb-6">
               <FileText className="w-6 h-6 text-red-700" />
               <h3 className="text-2xl text-gray-900">Documents</h3>
