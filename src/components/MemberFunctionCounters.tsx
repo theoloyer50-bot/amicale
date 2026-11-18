@@ -4,6 +4,7 @@ import { onValue, ref } from 'firebase/database';
 import { firebaseDatabase } from '../utils/firebase/client';
 import {
   MEMBER_FUNCTIONS,
+  MEMBER_FUNCTION_COUNTS_PATH,
   MemberFunctionCounts,
   createEmptyMemberFunctionCounts,
 } from '../utils/firebase/memberFunctions';
@@ -15,7 +16,7 @@ export function MemberFunctionCounters() {
 
   useEffect(() => {
     const unsubscribe = onValue(
-      ref(firebaseDatabase, 'kv/memberFunctionCounts'),
+      ref(firebaseDatabase, MEMBER_FUNCTION_COUNTS_PATH),
       (snapshot) => {
         const values = snapshot.val();
         const rawCounts: Record<string, unknown> =

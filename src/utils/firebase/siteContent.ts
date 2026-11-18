@@ -1,5 +1,6 @@
 import { get, ref, set } from 'firebase/database';
 import { firebaseDatabase } from './client';
+import { MEMBER_FUNCTION_COUNTS_PATH } from './memberFunctions';
 
 export type SiteContentKey = 'homepage' | 'hero' | 'jsp' | 'public' | 'documents';
 
@@ -36,5 +37,18 @@ export async function saveSiteContent<T>(
   accessToken: string,
 ): Promise<void> {
   void accessToken;
+  if (key === 'public' && content !== null && typeof content === 'object' && !Array.isArray(content)) {
+    const publicContent: Record<string, unknown> = Object.assign({}, content);
+    delete publicContent.memberFunctionCounts;
+
+    const countsSnapshot = await get(ref(firebaseDatabase, MEMBER_FUNCTION_COUNTS_PATH));
+    if (countsSnapshot.exists()) {
+      publicContent.memberFunctionCounts = countsSnapshot.val();
+    }
+
+    await set(ref(firebaseDatabase, `kv/site_content:${key}`), publicContent);
+    return;
+  }
+
   await set(ref(firebaseDatabase, `kv/site_content:${key}`), content);
 }

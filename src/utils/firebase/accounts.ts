@@ -13,6 +13,7 @@ import { createIsolatedFirebaseApp, firebaseAuth, firebaseDatabase } from './cli
 import {
   countMemberFunctions,
   isMemberFunction,
+  MEMBER_FUNCTION_COUNTS_PATH,
   MemberFunction,
 } from './memberFunctions';
 
@@ -189,7 +190,7 @@ export async function updateMemberFunction(uid: string, fonction: MemberFunction
 
 export async function publishMemberFunctionCounts(accounts: MemberAccount[]): Promise<void> {
   await set(
-    ref(firebaseDatabase, 'kv/memberFunctionCounts'),
+    ref(firebaseDatabase, MEMBER_FUNCTION_COUNTS_PATH),
     countMemberFunctions(accounts)
   );
 }

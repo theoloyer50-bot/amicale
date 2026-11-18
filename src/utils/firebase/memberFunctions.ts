@@ -6,6 +6,8 @@ export const MEMBER_FUNCTIONS = [
   { value: 'pats', acronym: 'PATS', description: 'Personnels Administratifs, Techniques et Spécialisés' },
 ] as const;
 
+export const MEMBER_FUNCTION_COUNTS_PATH = 'kv/site_content:public/memberFunctionCounts';
+
 export type MemberFunction = typeof MEMBER_FUNCTIONS[number]['value'];
 export type MemberFunctionCounts = Record<MemberFunction, number>;
 

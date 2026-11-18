@@ -19,10 +19,6 @@
           ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
         }
       },
-      "memberFunctionCounts": {
-        ".read": true,
-        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
-      },
       "site_content:homepage": {
         ".read": true,
         ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
