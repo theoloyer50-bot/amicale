@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HomePage } from './components/HomePage';
 import { PublicHomePage } from './components/PublicHomePage';
+import { PhotoSlideshow } from './components/PhotoSlideshow';
 import { LoginModal } from './components/LoginModal';
 import { MemberArea } from './components/MemberArea';
 import { AdminPanel } from './components/AdminPanel';
@@ -210,6 +211,8 @@ export default function App() {
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
       />
+
+      <PhotoSlideshow />
       
       {successMessage && (
         <div className="bg-green-50 border-l-4 border-green-500 p-4 mx-4 mt-4 rounded">
