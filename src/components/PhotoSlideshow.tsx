@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import './PhotoSlideshow.css';
 
 const photos = [
@@ -27,6 +29,68 @@ const photos = [
 ];
 
 export function PhotoSlideshow() {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(() =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (viewport) {
+      viewport.scrollLeft = viewport.scrollWidth / 2;
+    }
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (
+      !viewport ||
+      isPaused ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    let frameId = 0;
+    let previousTime: number | null = null;
+    const speed = 30;
+
+    const movePhotos = (time: number) => {
+      if (previousTime !== null) {
+        viewport.scrollLeft -= speed * ((time - previousTime) / 1000);
+        if (viewport.scrollLeft <= 0) {
+          viewport.scrollLeft = viewport.scrollWidth / 2;
+        }
+      }
+      previousTime = time;
+      frameId = window.requestAnimationFrame(movePhotos);
+    };
+
+    frameId = window.requestAnimationFrame(movePhotos);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isPaused]);
+
+  const scrollManually = (direction: 'left' | 'right') => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    setIsPaused(true);
+    const loopPoint = viewport.scrollWidth / 2;
+    const distance = Math.min(viewport.clientWidth * 0.8, loopPoint / 2);
+
+    if (direction === 'left') {
+      if (viewport.scrollLeft + distance >= loopPoint) {
+        viewport.scrollLeft = 0;
+      }
+      viewport.scrollBy({ left: distance, behavior: 'smooth' });
+    } else {
+      if (viewport.scrollLeft <= distance) {
+        viewport.scrollLeft = loopPoint;
+      }
+      viewport.scrollBy({ left: -distance, behavior: 'smooth' });
+    }
+  };
+
   const renderPhotos = (isDuplicate: boolean) => (
     <div
       className="photo-strip"
@@ -45,11 +109,37 @@ export function PhotoSlideshow() {
 
   return (
     <section aria-label="Photos de l'Amicale" className="photo-gallery">
-      <div className="photo-gallery-viewport">
+      <div className="photo-gallery-viewport" ref={viewportRef}>
         <div className="photo-marquee">
           {renderPhotos(false)}
           {renderPhotos(true)}
         </div>
+      </div>
+      <div className="photo-gallery-controls">
+        <button
+          type="button"
+          onClick={() => scrollManually('left')}
+          aria-label="Faire défiler les photos vers la gauche"
+          title="Défiler vers la gauche"
+        >
+          <ChevronLeft aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsPaused((paused) => !paused)}
+          aria-label={isPaused ? 'Reprendre le défilement automatique' : 'Mettre en pause le défilement automatique'}
+          title={isPaused ? 'Reprendre le défilement' : 'Mettre en pause'}
+        >
+          {isPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollManually('right')}
+          aria-label="Faire défiler les photos vers la droite"
+          title="Défiler vers la droite"
+        >
+          <ChevronRight aria-hidden="true" />
+        </button>
       </div>
     </section>
   );
