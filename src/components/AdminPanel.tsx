@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, Shield, Calendar, Edit, Key, Clock, Unlock, Lock, AlertTriangle, Crown, Eye, UserPlus, Trash2 } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, Calendar, Edit, Key, Clock, Unlock, Lock, AlertTriangle, Crown, Eye, UserPlus, Trash2, X } from 'lucide-react';
 import { CreateUserModal } from './CreateUserModal';
 import { HomePageEditor } from './HomePageEditor';
 import { HeroEditor } from './HeroEditor';
@@ -13,6 +13,7 @@ import {
   listMemberAccounts,
   publishMemberFunctionCounts,
   sendMemberPasswordReset,
+  updateMemberPersonalInfo,
   updateMemberFunction,
   updateMemberRole,
   updateMemberStatus,
@@ -56,6 +57,11 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
   const [passwordModalUserId, setPasswordModalUserId] = useState<string | null>(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+  const [editUser, setEditUser] = useState<PendingUser | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserError, setEditUserError] = useState<string | null>(null);
+  const [isSavingUserInfo, setIsSavingUserInfo] = useState(false);
   
   // Registration status states
   const [sainteBarbeStatus, setSainteBarbeStatus] = useState<RegistrationStatus>({ isOpen: false, closedMessage: 'Les inscriptions ne sont pas encore ouvertes.' });
@@ -222,23 +228,36 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    try {
-      setError(null);
-      
-      if (userId === firebaseAuth.currentUser?.uid) {
-        setError('Vous ne pouvez pas désactiver votre propre compte administrateur.');
-        return;
-      }
-      if (!confirm(`Désactiver l’accès de "${userName}" au site ? Son compte d’authentification sera conservé, mais il ne pourra plus se connecter.`)) {
-        return;
-      }
+  const handleOpenEditUser = (user: PendingUser) => {
+    setError(null);
+    setEditUserError(null);
+    setEditUser(user);
+    setEditUserName(user.name);
+    setEditUserEmail(user.email);
+  };
 
-      await updateMemberStatus(userId, 'rejected');
+  const handleUpdateUserInfo = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editUser) return;
+
+    const name = editUserName.trim();
+    const email = editUserEmail.trim();
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEditUserError('Veuillez saisir un nom et une adresse e-mail valides.');
+      return;
+    }
+
+    setIsSavingUserInfo(true);
+    setEditUserError(null);
+    try {
+      await updateMemberPersonalInfo(editUser.userId, name, email);
       await fetchPendingUsers();
+      setEditUser(null);
     } catch (error) {
-      console.error('Error deleting user:', error);
-      setError(error instanceof Error ? error.message : 'Erreur de suppression');
+      console.error('Error updating user personal information:', error);
+      setEditUserError(error instanceof Error ? error.message : 'Erreur lors de la modification du compte.');
+    } finally {
+      setIsSavingUserInfo(false);
     }
   };
 
@@ -654,6 +673,13 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                               <UserX className="w-4 h-4" />
                               Refuser
                             </button>
+                            <button
+                              onClick={() => handleOpenEditUser(user)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Modifier
+                            </button>
                           </>
                         ) : (
                           // All users tab: show role selector for approved users, or approve/reject buttons for pending
@@ -707,12 +733,12 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                                   )}
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteUser(user.userId, user.name)}
-                                  className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                                  title="Désactiver le compte"
+                                  onClick={() => handleOpenEditUser(user)}
+                                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
+                                  title="Modifier les informations du compte"
                                 >
-                                  <Lock className="w-4 h-4" />
-                                  <span className="sm:hidden">Désactiver</span>
+                                  <Edit className="w-4 h-4" />
+                                  Modifier
                                 </button>
                               </div>
                             </>
@@ -732,6 +758,13 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                                 <UserX className="w-4 h-4" />
                                 Refuser
                               </button>
+                              <button
+                                onClick={() => handleOpenEditUser(user)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Modifier
+                              </button>
                             </>
                           ) : (
                             // Rejected/Deactivated users: show reactivate and delete buttons
@@ -745,12 +778,12 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                                 Réactiver
                               </button>
                               <button
-                                onClick={() => handleDeleteUser(user.userId, user.name)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                                title="Désactiver le compte"
+                                onClick={() => handleOpenEditUser(user)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
+                                title="Modifier les informations du compte"
                               >
-                                <Lock className="w-4 h-4" />
-                                Désactiver
+                                <Edit className="w-4 h-4" />
+                                Modifier
                               </button>
                             </>
                           )
@@ -814,6 +847,76 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
             </div>
           );
         })()}
+
+        {editUser && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-xl text-gray-900">Modifier les informations du compte</h3>
+                <button
+                  type="button"
+                  onClick={() => setEditUser(null)}
+                  disabled={isSavingUserInfo}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateUserInfo} className="p-6 space-y-4">
+                {editUserError && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3">
+                    {editUserError}
+                  </div>
+                )}
+                <p className="text-sm text-gray-600">
+                  La modification de l’adresse e-mail met aussi à jour l’identifiant de connexion.
+                </p>
+                <div>
+                  <label htmlFor="edit-member-name" className="block text-gray-700 mb-2">Nom complet *</label>
+                  <input
+                    id="edit-member-name"
+                    type="text"
+                    value={editUserName}
+                    onChange={(event) => setEditUserName(event.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-member-email" className="block text-gray-700 mb-2">Adresse e-mail *</label>
+                  <input
+                    id="edit-member-email"
+                    type="email"
+                    value={editUserEmail}
+                    onChange={(event) => setEditUserEmail(event.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditUser(null)}
+                    disabled={isSavingUserInfo}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingUserInfo}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    {isSavingUserInfo ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Create User Modal */}
         <CreateUserModal

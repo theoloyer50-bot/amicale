@@ -51,7 +51,12 @@
         "$uid": {
           ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
           ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved' && root.child('kv/eventSettings/noel/isOpen').val() !== false))",
-          ".validate": "!newData.exists() || (newData.child('userId').val() === $uid && newData.child('numberOfAdults').isNumber() && newData.child('numberOfAdults').val() >= 1 && newData.child('numberOfAdults').val() <= 20 && newData.child('numberOfChildren').isNumber() && newData.child('numberOfChildren').val() >= 0 && newData.child('numberOfChildren').val() <= 20)"
+          ".validate": "!newData.exists() || (newData.child('userId').val() === $uid && newData.child('numberOfAdults').isNumber() && newData.child('numberOfAdults').val() >= 1 && newData.child('numberOfAdults').val() <= 20 && newData.child('numberOfChildren').isNumber() && newData.child('numberOfChildren').val() >= 0 && newData.child('numberOfChildren').val() <= 20 && (!newData.child('childIds').exists() || (newData.child('childIds').numChildren() === newData.child('numberOfChildren').val() && newData.child('childIds').numChildren() <= 20)))",
+          "childIds": {
+            "$index": {
+              ".validate": "newData.isString() && root.child('kv/children/' + $uid + '/' + newData.val() + '/userId').val() === $uid"
+            }
+          }
         }
       },
       "children": {

@@ -148,7 +148,10 @@ export const firebaseAuth = {
       try {
         const user = await auth().updateUser(uid, {
           ...(properties.password ? { password: properties.password } : {}),
-          ...(properties.user_metadata?.name ? { displayName: properties.user_metadata.name } : {}),
+          ...(properties.email ? { email: properties.email } : {}),
+          ...(properties.user_metadata && Object.prototype.hasOwnProperty.call(properties.user_metadata, "name")
+            ? { displayName: properties.user_metadata.name || null }
+            : {}),
         });
         return { data: { user: toCompatUser(user) }, error: null };
       } catch (error) {

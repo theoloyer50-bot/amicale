@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, X, Users, Lock, AlertCircle } from 'lucide-react';
-import { getEventRegistrationStatus, getNoelRegistration, saveNoelRegistration } from '../utils/firebase/siteData';
+import { Gift, X, Users, Lock, AlertCircle, Baby } from 'lucide-react';
+import { ChildRecord, getEventRegistrationStatus, getMyChildren, getNoelRegistration, NoelRegistration, saveNoelRegistration } from '../utils/firebase/siteData';
 
 interface InscriptionsNoelModalProps {
   isOpen: boolean;
@@ -17,12 +17,15 @@ interface RegistrationStatus {
 export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: InscriptionsNoelModalProps) {
   const [isRegistered, setIsRegistered] = useState(false);
   const [numberOfAdults, setNumberOfAdults] = useState(1);
-  const [numberOfChildren, setNumberOfChildren] = useState(0);
+  const [children, setChildren] = useState<ChildRecord[]>([]);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [areChildrenLoading, setAreChildrenLoading] = useState(true);
   const [comments, setComments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus>({ isOpen: false, closedMessage: 'Chargement...' });
-  const [myRegistration, setMyRegistration] = useState<any>(null);
+  const [myRegistration, setMyRegistration] = useState<NoelRegistration | null>(null);
+  const numberOfChildren = selectedChildIds.length;
 
   useEffect(() => {
     if (isOpen) {
@@ -40,24 +43,32 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
   };
 
   const fetchMyRegistration = async () => {
+    setAreChildrenLoading(true);
     try {
-      const registration = await getNoelRegistration(user.id);
+      const [registration, myChildren] = await Promise.all([
+        getNoelRegistration(user.id),
+        getMyChildren(),
+      ]);
+      setChildren(myChildren);
       if (registration) {
         setMyRegistration(registration);
         setIsRegistered(true);
         setNumberOfAdults(registration.numberOfAdults);
-        setNumberOfChildren(registration.numberOfChildren || 0);
+        setSelectedChildIds((registration.childIds || []).filter((id) => myChildren.some((child) => child.id === id)));
         setComments(registration.comments || '');
       } else {
+        setMyRegistration(null);
         setIsRegistered(false);
+        setNumberOfAdults(1);
+        setSelectedChildIds([]);
+        setComments('');
       }
     } catch (error) {
       console.error('Error fetching my registration:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de votre inscription');
+    } finally {
+      setAreChildrenLoading(false);
     }
-  };
-
-  const checkExistingRegistration = async () => {
-    // Deprecated: now using fetchMyRegistration
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +78,7 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
     setError(null);
 
     try {
-      await saveNoelRegistration({ numberOfAdults, numberOfChildren, comments });
+      await saveNoelRegistration({ numberOfAdults, childIds: selectedChildIds, comments });
       setIsRegistered(true);
       await fetchMyRegistration();
     } catch (error) {
@@ -158,16 +169,42 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
 
                 <div>
                   <label className="block text-gray-700 mb-2">
-                    Nombre d'enfants
+                    Enfants qui participeront
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    value={numberOfChildren}
-                    onChange={(e) => setNumberOfChildren(parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent"
-                  />
+                  {areChildrenLoading ? (
+                    <p className="text-sm text-gray-600">Chargement des enfants...</p>
+                  ) : children.length > 0 ? (
+                    <div className="space-y-2">
+                      {children.map((child) => (
+                        <label
+                          key={child.id}
+                          className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedChildIds.includes(child.id)}
+                            onChange={(event) => {
+                              setSelectedChildIds((current) => event.target.checked
+                                ? [...current, child.id]
+                                : current.filter((id) => id !== child.id));
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-700"
+                          />
+                          <Baby className="w-5 h-5 text-red-700 flex-shrink-0" />
+                          <span className="text-gray-800">{child.prenom} {child.nom}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Aucun enfant n'est associé à votre compte. Vous pouvez les déclarer dans la rubrique « Mes enfants ».
+                    </p>
+                  )}
+                  {myRegistration && !myRegistration.childIds?.length && myRegistration.numberOfChildren > 0 && (
+                    <p className="mt-2 text-sm text-amber-700">
+                      Votre inscription précédente indique {myRegistration.numberOfChildren} enfant(s) sans détail. Sélectionnez les enfants concernés pour la mettre à jour.
+                    </p>
+                  )}
                 </div>
 
                 <div>

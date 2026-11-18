@@ -36,7 +36,7 @@
   ```powershell
   npm ci
   npm run build
-  firebase deploy --only hosting,database
+  firebase deploy --only hosting,database,functions
   ```
 
   Les comptes sont créés dans Firebase Authentication. Leurs rôles et statuts sont dans `kv/memberAccounts`, et l'annuaire minimal approuvé dans `kv/memberDirectory`. Les contenus de site, inscriptions et données enfants sont stockés sous `kv/site_content:*`, `kv/noelRegistrations`, `kv/sainteBarbeTables` et `kv/children`.
@@ -45,7 +45,8 @@
 
   - La réinitialisation de mot de passe envoie un e-mail Firebase ; le panneau ne peut pas définir directement le mot de passe d'un autre utilisateur.
   - « Désactiver » bloque l'accès au site, mais ne supprime pas le compte Firebase Authentication. La suppression d'un compte Auth nécessite un backend de confiance.
-  - Sainte-Barbe utilise cinq emplacements de réservation par table, dans la limite de dix personnes au total par table. Une inscription peut inclure un ou deux adultes ainsi que les enfants cochés depuis le compte associé ; les règles de la base limitent chaque inscription à dix personnes.
+  - Sainte-Barbe utilise cinq emplacements de réservation par table, dans la limite de dix personnes au total par table. Une inscription comprend un ou deux adultes.
+  - À Noël, les enfants qui participeront sont sélectionnés parmi ceux associés au compte ; le nombre d'enfants inscrit est calculé à partir de cette sélection.
   - Un enfant est rattaché au compte qui le déclare ; un second parent membre pompier approuvé peut également être associé.
 
   Les anciens comptes et données des anciennes versions ne sont pas migrés automatiquement. Les comptes doivent être créés dans Firebase Authentication et disposer d'un profil correspondant dans Realtime Database.

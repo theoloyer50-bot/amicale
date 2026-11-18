@@ -27,6 +27,7 @@ export interface NoelRegistration {
   name: string;
   numberOfAdults: number;
   numberOfChildren: number;
+  childIds?: string[];
   comments: string;
   registeredAt: string;
 }
@@ -35,7 +36,6 @@ export interface SainteBarbeReservation {
   name: string;
   numberOfGuests: number;
   numberOfAdults?: number;
-  childIds?: string[];
   tableNumber?: number;
   slotNumber?: number;
   addedManually?: boolean;
@@ -197,20 +197,33 @@ export async function getNoelRegistration(uid = currentUid()): Promise<NoelRegis
   return snapshot.val();
 }
 
-export async function saveNoelRegistration(input: Pick<NoelRegistration, 'numberOfAdults' | 'numberOfChildren' | 'comments'>): Promise<void> {
+export async function saveNoelRegistration(input: Pick<NoelRegistration, 'numberOfAdults' | 'childIds' | 'comments'>): Promise<void> {
   const uid = currentUid();
-  const profileSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`));
+  const childIds = input.childIds || [];
+  if (!Array.isArray(childIds) || childIds.some((id) => typeof id !== 'string' || !id) || new Set(childIds).size !== childIds.length || childIds.length > 20) {
+    throw new Error('Sélection des enfants invalide.');
+  }
+  const [profileSnapshot, childrenSnapshot] = await Promise.all([
+    get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`)),
+    get(ref(firebaseDatabase, `kv/children/${uid}`)),
+  ]);
   const profile = profileSnapshot.val() as MemberAccount | null;
   if (profile?.status !== 'approved') throw new Error('Compte non approuvé.');
-  if (!Number.isInteger(input.numberOfAdults) || input.numberOfAdults < 1 || input.numberOfAdults > 20 || !Number.isInteger(input.numberOfChildren) || input.numberOfChildren < 0 || input.numberOfChildren > 20) {
+  if (!Number.isInteger(input.numberOfAdults) || input.numberOfAdults < 1 || input.numberOfAdults > 20) {
     throw new Error('Nombre d’adultes ou d’enfants invalide.');
   }
+  const childrenById = (childrenSnapshot.val() || {}) as Record<string, ChildRecord>;
+  childIds.forEach((id) => {
+    const child = childrenById[id];
+    if (!child || child.userId !== uid) throw new Error('Un enfant sélectionné est introuvable dans votre compte.');
+  });
   const status = await getEventRegistrationStatus('noel');
   if (!status.isOpen) throw new Error(status.closedMessage || 'Les inscriptions sont fermées.');
   await set(ref(firebaseDatabase, `kv/noelRegistrations/${uid}`), {
     userId: uid, email: profile.email, name: profile.name,
     numberOfAdults: input.numberOfAdults,
-    numberOfChildren: input.numberOfChildren,
+    numberOfChildren: childIds.length,
+    ...(childIds.length ? { childIds } : {}),
     comments: (input.comments || '').slice(0, 1000),
     registeredAt: new Date().toISOString(),
   } satisfies NoelRegistration);
@@ -247,29 +260,17 @@ export async function getMySainteBarbeRegistration(uid = currentUid()): Promise<
     : null;
 }
 
-export async function saveSainteBarbeRegistration(tableNumber: number, numberOfAdults: number, childIds: string[]): Promise<void> {
+export async function saveSainteBarbeRegistration(tableNumber: number, numberOfAdults: number): Promise<void> {
   const uid = currentUid();
   if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 15 || ![1, 2].includes(numberOfAdults)) {
     throw new Error('Inscription invalide.');
   }
-  if (!Array.isArray(childIds) || childIds.some((id) => typeof id !== 'string' || !id) || new Set(childIds).size !== childIds.length) {
-    throw new Error('Sélection des enfants invalide.');
-  }
   const status = await getEventRegistrationStatus('sainte-barbe');
   if (!status.isOpen) throw new Error(status.closedMessage || 'Les inscriptions sont fermées.');
-  const [profileSnapshot, childrenSnapshot] = await Promise.all([
-    get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`)),
-    get(ref(firebaseDatabase, `kv/children/${uid}`)),
-  ]);
+  const profileSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`));
   const profile = profileSnapshot.val() as MemberAccount | null;
   if (profile?.status !== 'approved') throw new Error('Compte non approuvé.');
-  const childrenById = (childrenSnapshot.val() || {}) as Record<string, ChildRecord>;
-  childIds.forEach((id) => {
-    const child = childrenById[id];
-    if (!child || child.userId !== uid) throw new Error('Un enfant sélectionné est introuvable dans votre compte.');
-  });
-  const numberOfGuests = numberOfAdults + childIds.length;
-  if (numberOfGuests > 10) throw new Error('Une inscription ne peut pas dépasser 10 personnes.');
+  const numberOfGuests = numberOfAdults;
 
   const indexRef = ref(firebaseDatabase, `kv/sainteBarbeUserIndex/${uid}`);
   const indexSnapshot = await get(indexRef);
@@ -285,9 +286,11 @@ export async function saveSainteBarbeRegistration(tableNumber: number, numberOfA
       throw new Error('Cette table ne dispose pas d’assez de places.');
     }
     const reservationRef = ref(firebaseDatabase, `${tablePath(tableNumber)}/slots/${oldIndex.slotKey}`);
+    const updatedSlot = { ...oldSlot };
+    delete updatedSlot.childIds;
     await set(reservationRef, {
-      ...oldSlot, userId: uid, name: profile.name, email: profile.email,
-      numberOfAdults, childIds, numberOfGuests,
+      ...updatedSlot, userId: uid, name: profile.name, email: profile.email,
+      numberOfAdults, numberOfGuests,
       tableNumber, slotNumber: Number(oldIndex.slotKey), registeredAt: now,
     });
     return;
@@ -313,7 +316,6 @@ export async function saveSainteBarbeRegistration(tableNumber: number, numberOfA
         name: profile.name,
         email: profile.email,
         numberOfAdults,
-        childIds,
         numberOfGuests,
         tableNumber,
         slotNumber,

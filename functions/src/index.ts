@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { getApps, initializeApp } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
 import { onRequest } from "firebase-functions/v2/https";
 import * as kv from "./kv_store";
 import { firebaseAuth } from "./auth_adapter";
@@ -1887,6 +1888,74 @@ app.post("/make-server-3b9ea24b/admin/reject-user", async (c) => {
   } catch (error) {
     console.error('Error rejecting user:', error);
     return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Update user role
+app.post("/make-server-3b9ea24b/admin/update-user-info", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    if (!accessToken) return c.json({ error: 'Authentification requise.' }, 401);
+
+    const { data: { user: adminUser }, error: authError } = await firebaseAuthProvider.auth.getUser(accessToken);
+    if (authError || !adminUser) return c.json({ error: 'Authentification invalide.' }, 401);
+
+    const database = getDatabase();
+    const adminRole = await database.ref(`kv/memberAccounts/${adminUser.id}/role`).get();
+    if (adminRole.val() !== 'admin') return c.json({ error: 'Accès administrateur requis.' }, 403);
+
+    const { userId, name, email } = await c.req.json();
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (typeof userId !== 'string' || !userId || !normalizedName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return c.json({ error: 'Nom et adresse e-mail valides requis.' }, 400);
+    }
+
+    const accountSnapshot = await database.ref(`kv/memberAccounts/${userId}`).get();
+    if (!accountSnapshot.exists()) return c.json({ error: 'Compte introuvable.' }, 404);
+    const account = accountSnapshot.val();
+    const { data: { user: targetAuthUser }, error: targetAuthError } = await firebaseAuthProvider.auth.admin.getUserById(userId);
+    if (targetAuthError || !targetAuthUser) return c.json({ error: 'Compte Firebase Authentication introuvable.' }, 404);
+
+    const { error: authUpdateError } = await firebaseAuthProvider.auth.admin.updateUserById(userId, {
+      email: normalizedEmail,
+      user_metadata: { name: normalizedName },
+    });
+    if (authUpdateError) return c.json({ error: authUpdateError.message }, 400);
+
+    const updates: Record<string, unknown> = {
+      [`kv/memberAccounts/${userId}/name`]: normalizedName,
+      [`kv/memberAccounts/${userId}/email`]: normalizedEmail,
+    };
+    if (account.status === 'approved') {
+      updates[`kv/memberDirectory/${userId}`] = {
+        userId,
+        email: normalizedEmail,
+        name: normalizedName,
+        role: account.role || (account.isAdmin ? 'admin' : 'membre'),
+        status: account.status,
+        ...(account.fonction ? { fonction: account.fonction } : {}),
+      };
+    }
+
+    try {
+      await database.ref().update(updates);
+    } catch (databaseError) {
+      const { error: rollbackError } = await firebaseAuthProvider.auth.admin.updateUserById(userId, {
+        ...(targetAuthUser.email ? { email: targetAuthUser.email } : {}),
+        user_metadata: { name: targetAuthUser.user_metadata?.name || null },
+      });
+      if (rollbackError) {
+        console.error('Failed to roll back Firebase Authentication after profile update failure:', rollbackError);
+        throw new Error('La mise à jour a échoué et la synchronisation du compte nécessite une vérification.');
+      }
+      throw databaseError;
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Error updating member personal information:', error);
+    return c.json({ error: error instanceof Error ? error.message : 'Erreur lors de la modification du compte.' }, 500);
   }
 });
 

@@ -16,6 +16,7 @@ import {
   MEMBER_FUNCTION_COUNTS_PATH,
   MemberFunction,
 } from './memberFunctions';
+import { projectId } from './info';
 
 export type AccountRole = 'membre' | 'superviseur' | 'admin';
 export type AccountStatus = 'pending' | 'approved' | 'rejected';
@@ -198,6 +199,25 @@ export async function publishMemberFunctionCounts(accounts: MemberAccount[]): Pr
 export async function sendMemberPasswordReset(email: string): Promise<void> {
   if (!email) throw new Error('Adresse e-mail introuvable pour ce compte.');
   await sendPasswordResetEmail(firebaseAuth, email);
+}
+
+export async function updateMemberPersonalInfo(userId: string, name: string, email: string): Promise<void> {
+  const currentUser = firebaseAuth.currentUser;
+  if (!currentUser) throw new Error('Session expirée. Veuillez vous reconnecter.');
+
+  const response = await fetch(
+    `https://europe-west1-${projectId}.cloudfunctions.net/api/make-server-3b9ea24b/admin/update-user-info`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${await currentUser.getIdToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, name, email }),
+    },
+  );
+  const result = await response.json() as { error?: string };
+  if (!response.ok) throw new Error(result.error || 'Erreur lors de la modification du compte.');
 }
 
 export async function blockMemberAccount(uid: string): Promise<void> {
