@@ -440,7 +440,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
                       })}
                     </div>
                   )}
-                </div>
+                </section>
 
                 <button
                   type="submit"
