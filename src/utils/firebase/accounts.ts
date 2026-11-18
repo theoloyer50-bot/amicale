@@ -10,6 +10,11 @@ import {
 } from 'firebase/auth';
 import { get, ref, set, update } from 'firebase/database';
 import { createIsolatedFirebaseApp, firebaseAuth, firebaseDatabase } from './client';
+import {
+  countMemberFunctions,
+  isMemberFunction,
+  MemberFunction,
+} from './memberFunctions';
 
 export type AccountRole = 'membre' | 'superviseur' | 'admin';
 export type AccountStatus = 'pending' | 'approved' | 'rejected';
@@ -20,6 +25,7 @@ export interface MemberAccount {
   name: string;
   status: AccountStatus;
   role: AccountRole;
+  fonction?: MemberFunction;
   isAdmin: boolean;
   createdAt: string;
 }
@@ -40,6 +46,7 @@ export async function listMemberAccounts(): Promise<MemberAccount[]> {
         name: String(value.name || value.email || 'Utilisateur'),
         status: (value.status || 'pending') as AccountStatus,
         role,
+        fonction: isMemberFunction(value.fonction) ? value.fonction : undefined,
         isAdmin: role === 'admin',
         createdAt: String(value.createdAt || ''),
       };
@@ -52,6 +59,7 @@ export async function createMemberAccount(input: {
   password: string;
   name: string;
   role: AccountRole;
+  fonction: MemberFunction;
   requirePasswordChange: boolean;
 }): Promise<void> {
   const secondaryApp = createIsolatedFirebaseApp(`account-create-${Date.now()}`);
@@ -70,6 +78,7 @@ export async function createMemberAccount(input: {
         email: input.email.trim(),
         name: input.name.trim(),
         role: input.role,
+        fonction: input.fonction,
         isAdmin: input.role === 'admin',
         createdAt: now,
         approvedAt: now,
@@ -82,6 +91,7 @@ export async function createMemberAccount(input: {
         email: input.email.trim(),
         name: input.name.trim(),
         role: input.role,
+        fonction: input.fonction,
         status: 'approved',
       },
     };
@@ -111,7 +121,14 @@ export async function updateMemberStatus(uid: string, status: AccountStatus): Pr
     },
   };
   if (status === 'approved') {
-    updates[`kv/memberDirectory/${uid}`] = { userId: uid, email: current.email, name: current.name, role: current.role, status };
+    updates[`kv/memberDirectory/${uid}`] = {
+      userId: uid,
+      email: current.email,
+      name: current.name,
+      role: current.role,
+      status,
+      ...(current.fonction ? { fonction: current.fonction } : {}),
+    };
   } else {
     updates[`kv/memberDirectory/${uid}`] = null;
   }
@@ -130,9 +147,51 @@ export async function updateMemberRole(uid: string, role: AccountRole): Promise<
     },
   };
   if (current.status === 'approved') {
-    updates[`kv/memberDirectory/${uid}`] = { userId: uid, email: current.email, name: current.name, role, status: current.status };
+    updates[`kv/memberDirectory/${uid}`] = {
+      userId: uid,
+      email: current.email,
+      name: current.name,
+      role,
+      status: current.status,
+      ...(current.fonction ? { fonction: current.fonction } : {}),
+    };
   }
   await update(ref(firebaseDatabase), updates);
+}
+
+export async function updateMemberFunction(uid: string, fonction: MemberFunction | null): Promise<void> {
+  const snapshot = await get(ref(firebaseDatabase, accountPath(uid)));
+  if (!snapshot.exists()) throw new Error('Utilisateur introuvable.');
+
+  const current = snapshot.val() as MemberAccount;
+  const updatedAccount = { ...current };
+  if (fonction) {
+    updatedAccount.fonction = fonction;
+  } else {
+    delete updatedAccount.fonction;
+  }
+
+  const updates: Record<string, unknown> = {
+    [accountPath(uid)]: updatedAccount,
+  };
+  if (current.status === 'approved') {
+    updates[`kv/memberDirectory/${uid}`] = {
+      userId: uid,
+      email: current.email,
+      name: current.name,
+      role: current.role,
+      status: current.status,
+      ...(fonction ? { fonction } : {}),
+    };
+  }
+  await update(ref(firebaseDatabase), updates);
+}
+
+export async function publishMemberFunctionCounts(accounts: MemberAccount[]): Promise<void> {
+  await set(
+    ref(firebaseDatabase, 'kv/memberFunctionCounts'),
+    countMemberFunctions(accounts)
+  );
 }
 
 export async function sendMemberPasswordReset(email: string): Promise<void> {

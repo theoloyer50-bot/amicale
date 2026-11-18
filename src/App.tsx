@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { MemberFunctionCounters } from './components/MemberFunctionCounters';
 import { HomePage } from './components/HomePage';
 import { PublicHomePage } from './components/PublicHomePage';
 import { PhotoSlideshow } from './components/PhotoSlideshow';
@@ -14,10 +15,11 @@ import { InscriptionsNoelModal } from './components/InscriptionsNoelModal';
 import { MesEnfantsModal } from './components/MesEnfantsModal';
 import { Documents } from './components/Documents';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { MemberFunction } from './utils/firebase/memberFunctions';
 import * as auth from './utils/auth';
 
 export default function App() {
-  const [user, setUser] = useState<{ id: string; email: string; name?: string; isAdmin?: boolean; role?: 'membre' | 'superviseur' | 'admin'; mustChangePassword?: boolean; userStatus?: { status: 'approved' | 'pending' | 'rejected'; createdAt?: string } } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; name?: string; isAdmin?: boolean; role?: 'membre' | 'superviseur' | 'admin'; mustChangePassword?: boolean; userStatus?: { status: 'approved' | 'pending' | 'rejected'; createdAt?: string; fonction?: MemberFunction } } | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,10 +109,10 @@ export default function App() {
     }
   };
 
-  const handleSignup = async (email: string, password: string, name: string) => {
+  const handleSignup = async (email: string, password: string, name: string, fonction: MemberFunction) => {
     try {
       setError(null);
-      const response = await auth.signup(email, password, name);
+      const response = await auth.signup(email, password, name, fonction);
       setSuccessMessage(response.message);
       setIsLoginModalOpen(false);
       // Clear success message after 10 seconds
@@ -211,6 +213,8 @@ export default function App() {
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
       />
+
+      <MemberFunctionCounters />
 
       {successMessage && (
         <div className="bg-green-50 border-l-4 border-green-500 p-4 mx-4 mt-4 rounded">

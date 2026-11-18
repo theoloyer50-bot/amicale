@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, UserPlus } from 'lucide-react';
 import { createMemberAccount } from '../utils/firebase/accounts';
+import { isMemberFunction, MEMBER_FUNCTIONS, MemberFunction } from '../utils/firebase/memberFunctions';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export function CreateUserModal({ isOpen, onClose, accessToken, onUserCreated }:
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'membre' | 'superviseur' | 'admin'>('membre');
+  const [fonction, setFonction] = useState<MemberFunction | ''>('');
   const [requirePasswordChange, setRequirePasswordChange] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,13 +30,18 @@ export function CreateUserModal({ isOpen, onClose, accessToken, onUserCreated }:
     console.log('[CreateUserModal] Submitting with requirePasswordChange:', requirePasswordChange);
 
     try {
-      await createMemberAccount({ email, password, name, role, requirePasswordChange });
+      if (!isMemberFunction(fonction)) {
+        throw new Error('Veuillez choisir une fonction.');
+      }
+
+      await createMemberAccount({ email, password, name, role, fonction, requirePasswordChange });
 
       setSuccess(true);
       setEmail('');
       setPassword('');
       setName('');
       setRole('membre');
+      setFonction('');
       setRequirePasswordChange(false);
       
       onUserCreated();
@@ -138,6 +145,26 @@ export function CreateUserModal({ isOpen, onClose, accessToken, onUserCreated }:
               <option value="membre">Membre</option>
               <option value="superviseur">Superviseur (voit les enfants)</option>
               <option value="admin">Administrateur (tous les droits)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 mb-2" htmlFor="member-function">
+              Fonction *
+            </label>
+            <select
+              id="member-function"
+              value={fonction}
+              onChange={(e) => setFonction(isMemberFunction(e.target.value) ? e.target.value : '')}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            >
+              <option value="">Choisir une fonction</option>
+              {MEMBER_FUNCTIONS.map((memberFunction) => (
+                <option key={memberFunction.value} value={memberFunction.value}>
+                  {memberFunction.acronym} — {memberFunction.description}
+                </option>
+              ))}
             </select>
           </div>
 

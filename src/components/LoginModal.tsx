@@ -1,11 +1,12 @@
 import { X, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
+import { isMemberFunction, MEMBER_FUNCTIONS, MemberFunction } from '../utils/firebase/memberFunctions';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (email: string, password: string) => Promise<void>;
-  onSignup: (email: string, password: string, name: string) => Promise<void>;
+  onSignup: (email: string, password: string, name: string, fonction: MemberFunction) => Promise<void>;
   onResetPassword: (email: string) => Promise<void>;
   error?: string | null;
 }
@@ -15,6 +16,7 @@ export function LoginModal({ isOpen, onClose, onLogin, onSignup, onResetPassword
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [fonction, setFonction] = useState<MemberFunction | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
@@ -31,11 +33,13 @@ export function LoginModal({ isOpen, onClose, onLogin, onSignup, onResetPassword
         setEmail('');
         setPassword('');
       } else if (mode === 'signup') {
-        await onSignup(email, password, name);
+        if (!isMemberFunction(fonction)) return;
+        await onSignup(email, password, name, fonction);
         // Clear all fields after signup
         setEmail('');
         setPassword('');
         setName('');
+        setFonction('');
       } else if (mode === 'reset') {
         await onResetPassword(email);
         setResetSuccess(true);
@@ -97,6 +101,29 @@ export function LoginModal({ isOpen, onClose, onLogin, onSignup, onResetPassword
                 required={mode === 'signup'}
                 disabled={isSubmitting}
               />
+            </div>
+          )}
+
+          {mode === 'signup' && (
+            <div>
+              <label htmlFor="member-function" className="block text-gray-700 mb-2">
+                Fonction
+              </label>
+              <select
+                id="member-function"
+                value={fonction}
+                onChange={(e) => setFonction(isMemberFunction(e.target.value) ? e.target.value : '')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent outline-none"
+                required
+                disabled={isSubmitting}
+              >
+                <option value="">Choisir une fonction</option>
+                {MEMBER_FUNCTIONS.map((memberFunction) => (
+                  <option key={memberFunction.value} value={memberFunction.value}>
+                    {memberFunction.acronym} — {memberFunction.description}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

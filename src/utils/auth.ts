@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { get, ref, set, update } from 'firebase/database';
 import { firebaseAuth, firebaseDatabase } from './firebase/client';
+import { isMemberFunction, MemberFunction } from './firebase/memberFunctions';
 
 interface User {
   id: string;
@@ -18,11 +19,13 @@ interface User {
   name?: string;
   isAdmin?: boolean;
   role?: 'membre' | 'superviseur' | 'admin';
+  fonction?: MemberFunction;
   mustChangePassword?: boolean;
   userStatus?: {
     status: 'approved' | 'pending' | 'rejected';
     createdAt?: string;
     role?: 'membre' | 'superviseur' | 'admin';
+    fonction?: MemberFunction;
   };
 }
 
@@ -58,6 +61,7 @@ const toAppUser = (firebaseUser: FirebaseUser, profile: Awaited<ReturnType<typeo
   name: profile.userStatus?.name || firebaseUser.displayName || firebaseUser.email || '',
   isAdmin: profile.role === 'admin',
   role: profile.role,
+  fonction: isMemberFunction(profile.userStatus?.fonction) ? profile.userStatus.fonction : undefined,
   mustChangePassword: profile.mustChangePassword,
   userStatus: profile.userStatus || { status: profile.isApproved ? 'approved' : 'pending', role: profile.role },
 });
@@ -102,7 +106,8 @@ export async function login(email: string, password: string): Promise<AuthRespon
   }
 }
 
-export async function signup(email: string, password: string, name: string): Promise<SignupResponse> {
+export async function signup(email: string, password: string, name: string, fonction: MemberFunction): Promise<SignupResponse> {
+  if (!isMemberFunction(fonction)) throw new Error('Veuillez choisir une fonction valide.');
   const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
   try {
     await updateProfile(credential.user, { displayName: name.trim() });
@@ -112,6 +117,7 @@ export async function signup(email: string, password: string, name: string): Pro
       email: email.trim(),
       name: name.trim(),
       role: 'membre',
+      fonction,
       isAdmin: false,
       createdAt: new Date().toISOString(),
     });

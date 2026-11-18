@@ -11,10 +11,13 @@ import { ListeEnfants } from './ListeEnfants';
 import { DocumentsEditor } from './DocumentsEditor';
 import {
   listMemberAccounts,
+  publishMemberFunctionCounts,
   sendMemberPasswordReset,
+  updateMemberFunction,
   updateMemberRole,
   updateMemberStatus,
 } from '../utils/firebase/accounts';
+import { isMemberFunction, MEMBER_FUNCTIONS, MemberFunction } from '../utils/firebase/memberFunctions';
 import { firebaseAuth } from '../utils/firebase/client';
 import { getEventRegistrationStatus, saveEventRegistrationStatus } from '../utils/firebase/siteData';
 
@@ -24,6 +27,7 @@ interface PendingUser {
   name: string;
   status: 'pending' | 'approved' | 'rejected';
   role?: 'membre' | 'superviseur' | 'admin';
+  fonction?: MemberFunction;
   isAdmin?: boolean;
   createdAt: string;
 }
@@ -69,6 +73,7 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
       setError(null);
       const users = await listMemberAccounts();
       setPendingUsers(users);
+      await publishMemberFunctionCounts(users);
     } catch (error) {
       console.error('Error fetching pending users:', error);
       setError(error instanceof Error ? error.message : 'Erreur de chargement');
@@ -159,6 +164,17 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
     } catch (error) {
       console.error('Error updating user role:', error);
       setError(error instanceof Error ? error.message : 'Erreur de mise à jour');
+    }
+  };
+
+  const handleUpdateFunction = async (userId: string, fonction: MemberFunction | null) => {
+    try {
+      setError(null);
+      await updateMemberFunction(userId, fonction);
+      await fetchPendingUsers();
+    } catch (error) {
+      console.error('Error updating member function:', error);
+      setError(error instanceof Error ? error.message : 'Erreur de mise à jour de la fonction');
     }
   };
 
@@ -594,6 +610,30 @@ export function AdminPanel({ accessToken, userRole }: AdminPanelProps) {
                         <p className="text-xs text-gray-400">
                           Demande du {new Date(user.createdAt).toLocaleDateString('fr-FR')}
                         </p>
+                        <div className="mt-3 flex max-w-sm items-center gap-2">
+                          <label
+                            htmlFor={`member-function-${user.userId}`}
+                            className="whitespace-nowrap text-sm text-gray-600"
+                          >
+                            Fonction :
+                          </label>
+                          <select
+                            id={`member-function-${user.userId}`}
+                            value={user.fonction || ''}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              handleUpdateFunction(user.userId, isMemberFunction(value) ? value : null);
+                            }}
+                            className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="">Non renseignée</option>
+                            {MEMBER_FUNCTIONS.map((memberFunction) => (
+                              <option key={memberFunction.value} value={memberFunction.value}>
+                                {memberFunction.acronym} — {memberFunction.description}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">

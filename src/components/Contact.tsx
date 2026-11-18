@@ -1,4 +1,4 @@
-import { MapPin, Facebook, Instagram } from 'lucide-react';
+import { MapPin, Instagram } from 'lucide-react';
 
 interface ContactProps {
   isModal?: boolean;
@@ -40,10 +40,6 @@ export function Contact({ isModal = false }: ContactProps) {
             <div>
               <h4 className="text-gray-900 mb-3">Réseaux sociaux</h4>
               <div className="space-y-3">
-                <a href="#" className="flex items-center space-x-2 text-red-700 hover:text-red-800">
-                  <Facebook className="w-5 h-5" />
-                  <span>Suivez-nous sur Facebook</span>
-                </a>
                 <a
                   href="https://www.instagram.com/cis.tourlaville/"
                   target="_blank"

@@ -21,7 +21,7 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
               className="h-16 w-12 sm:h-[4.5rem] sm:w-[3.375rem] object-contain rounded bg-white shadow-sm"
             />
             <div>
-              <h1 className="text-xl sm:text-2xl">Amicale des Sapeurs Pompiers</h1>
+              <h1 className="text-xl sm:text-2xl">Amicale SP Tourlaville</h1>
               <p className="text-sm text-red-100">Tourlaville - Manche</p>
             </div>
           </div>
