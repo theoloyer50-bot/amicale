@@ -9,7 +9,6 @@ export function Footer({}: FooterProps) {
           <div>
             <h3 className="text-xl mb-4">Amicale des Sapeurs Pompiers</h3>
             <p className="text-gray-400">
-              Tourlaville - Manche<br />
               Solidarité, Entraide et Convivialité
             </p>
           </div>

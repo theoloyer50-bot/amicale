@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Users, GraduationCap, Mail, Info } from 'lucide-react';
+import { Users, GraduationCap, Mail, Info, Flame, ArrowRight } from 'lucide-react';
 import { DevenirJSP } from './DevenirJSP';
 import { Contact } from './Contact';
 import { getSiteContent } from '../utils/firebase/siteContent';
+import './HomePage.css';
 
 interface PublicPageContent {
   apropos: {
@@ -38,60 +39,75 @@ export function PublicHomePage() {
 
   return (
     <>
-      {/* Main content with large buttons */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl text-gray-900 mb-4">
-              Découvrez l'Amicale des Sapeurs Pompiers de Tourlaville
-            </h2>
-            <p className="text-xl text-gray-600">
-              Cliquez sur une section pour en savoir plus
-            </p>
+      <section className="public-home">
+        <div className="homepage-shell">
+          <div className="public-hero">
+            <div className="public-hero-content">
+              <p className="public-hero-kicker"><span /> Solidarité · Entraide · Convivialité</p>
+              <h2 className="public-hero-title">L'esprit d'équipe au cœur de notre amicale</h2>
+              <p className="public-hero-description">
+                Une association qui rassemble et accompagne les sapeurs-pompiers et leurs familles, dans les moments forts comme au quotidien.
+              </p>
+              <button
+                onClick={() => setActiveModal('apropos')}
+                className="public-hero-cta"
+              >
+                Découvrir l'Amicale
+                <ArrowRight aria-hidden="true" size={18} />
+              </button>
+            </div>
+            <div className="public-hero-emblem" aria-hidden="true">
+              <Flame />
+            </div>
           </div>
 
-          {/* Large button grid */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* À Propos Button */}
+          <div className="public-section-heading">
+            <p className="public-section-eyebrow">Bienvenue</p>
+            <h3>Découvrez l'Amicale</h3>
+            <p>Explorez nos actions, nos engagements et les façons de nous rejoindre.</p>
+          </div>
+
+          <div className="public-feature-grid">
             <button
               onClick={() => setActiveModal('apropos')}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 text-center border-2 border-transparent hover:border-red-700 transform hover:-translate-y-2"
+              className="public-feature-card"
             >
-              <div className="bg-gradient-to-br from-red-700 to-red-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                <Info className="w-10 h-10 text-white" />
+              <div className="public-feature-icon">
+                <Info aria-hidden="true" />
               </div>
-              <h3 className="text-2xl text-gray-900 mb-3">À Propos</h3>
-              <p className="text-gray-600">
+              <h4>À Propos</h4>
+              <p>
                 Découvrez notre mission, nos valeurs et notre histoire
               </p>
+              <span className="public-feature-link">En savoir plus <ArrowRight aria-hidden="true" size={17} /></span>
             </button>
 
-            {/* Devenir JSP Button */}
             <button
               onClick={() => setActiveModal('jsp')}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 text-center border-2 border-transparent hover:border-red-700 transform hover:-translate-y-2"
+              className="public-feature-card"
             >
-              <div className="bg-gradient-to-br from-red-700 to-red-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                <GraduationCap className="w-10 h-10 text-white" />
+              <div className="public-feature-icon">
+                <GraduationCap aria-hidden="true" />
               </div>
-              <h3 className="text-2xl text-gray-900 mb-3">Devenir JSP</h3>
-              <p className="text-gray-600">
+              <h4>Devenir JSP</h4>
+              <p>
                 Rejoignez les Jeunes Sapeurs-Pompiers et vivez une aventure unique
               </p>
+              <span className="public-feature-link">Découvrir <ArrowRight aria-hidden="true" size={17} /></span>
             </button>
 
-            {/* Contact Button */}
             <button
               onClick={() => setActiveModal('contact')}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 text-center border-2 border-transparent hover:border-red-700 transform hover:-translate-y-2"
+              className="public-feature-card"
             >
-              <div className="bg-gradient-to-br from-red-700 to-red-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                <Mail className="w-10 h-10 text-white" />
+              <div className="public-feature-icon">
+                <Mail aria-hidden="true" />
               </div>
-              <h3 className="text-2xl text-gray-900 mb-3">Contact</h3>
-              <p className="text-gray-600">
+              <h4>Contact</h4>
+              <p>
                 Posez vos questions ou rejoignez-nous
               </p>
+              <span className="public-feature-link">Nous écrire <ArrowRight aria-hidden="true" size={17} /></span>
             </button>
           </div>
         </div>

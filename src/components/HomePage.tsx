@@ -1,6 +1,7 @@
-import { Calendar, Gift, Baby } from 'lucide-react';
+import { Calendar, Gift, Baby, ArrowRight, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getSiteContent } from '../utils/firebase/siteContent';
+import './HomePage.css';
 
 interface HomePageProps {
   onSainteBarbeClick: () => void;
@@ -44,110 +45,74 @@ export function HomePage({ onSainteBarbeClick, onNoelClick, onMesEnfantsClick }:
   }, []);
 
   return (
-    <section id="evenements" className="py-20 bg-gradient-to-b from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl text-gray-900 mb-4">
+    <section id="evenements" className="member-home">
+      <div className="homepage-shell">
+        <div className="member-home-heading">
+          <p className="member-home-kicker"><Users aria-hidden="true" size={16} /> Espace membres</p>
+          <h1>
             {content.title}
           </h1>
-          <h2 className="text-2xl md:text-3xl text-red-700 mb-2">
+          <p className="text-red-700">
             {content.subtitle}
-          </h2>
-          <p className="text-gray-600 text-lg">
+          </p>
+          <p>
             {content.description}
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {/* Sainte-Barbe Button */}
+        <div className="member-event-grid">
           <button
             onClick={onSainteBarbeClick}
-            className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border-2 border-transparent hover:border-red-700"
+            className="member-event-card"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-700 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-            
-            <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-              <div className="bg-red-100 p-6 rounded-full group-hover:bg-red-700 transition-colors duration-300">
-                <Calendar className="w-12 h-12 text-red-700 group-hover:text-white transition-colors duration-300" />
+              <div className="member-event-icon">
+                <Calendar aria-hidden="true" />
               </div>
-              
-              <h3 className="text-2xl text-gray-900 group-hover:text-red-700 transition-colors duration-300">
+              <h2>
                 {content.sainteBarbeTitle}
-              </h3>
-              
-              <p className="text-gray-600 text-sm">
+              </h2>
+              <p>
                 {content.sainteBarbeDescription}
               </p>
-              
-              <div className="pt-2">
-                <span className="inline-block px-6 py-2 bg-red-700 text-white rounded-lg group-hover:bg-red-800 transition-colors duration-300">
-                  S'inscrire →
-                </span>
-              </div>
-            </div>
+              <span className="member-event-action">S'inscrire <ArrowRight aria-hidden="true" size={17} /></span>
           </button>
 
-          {/* Noël Button */}
           <button
             onClick={onNoelClick}
-            className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border-2 border-transparent hover:border-red-700"
+            className="member-event-card"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-700 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-            
-            <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-              <div className="bg-red-100 p-6 rounded-full group-hover:bg-red-700 transition-colors duration-300">
-                <Gift className="w-12 h-12 text-red-700 group-hover:text-white transition-colors duration-300" />
+              <div className="member-event-icon">
+                <Gift aria-hidden="true" />
               </div>
-              
-              <h3 className="text-2xl text-gray-900 group-hover:text-red-700 transition-colors duration-300">
+              <h2>
                 {content.noelTitle}
-              </h3>
-              
-              <p className="text-gray-600 text-sm">
+              </h2>
+              <p>
                 {content.noelDescription}
               </p>
-              
-              <div className="pt-2">
-                <span className="inline-block px-6 py-2 bg-red-700 text-white rounded-lg group-hover:bg-red-800 transition-colors duration-300">
-                  S'inscrire →
-                </span>
-              </div>
-            </div>
+              <span className="member-event-action">S'inscrire <ArrowRight aria-hidden="true" size={17} /></span>
           </button>
 
-          {/* Mes Enfants Button */}
           <button
             onClick={onMesEnfantsClick}
-            className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border-2 border-transparent hover:border-red-700"
+            className="member-event-card"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-700 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-            
-            <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-              <div className="bg-red-100 p-6 rounded-full group-hover:bg-red-700 transition-colors duration-300">
-                <Baby className="w-12 h-12 text-red-700 group-hover:text-white transition-colors duration-300" />
+              <div className="member-event-icon">
+                <Baby aria-hidden="true" />
               </div>
-              
-              <h3 className="text-2xl text-gray-900 group-hover:text-red-700 transition-colors duration-300">
+              <h2>
                 {content.mesEnfantsTitle}
-              </h3>
-              
-              <p className="text-gray-600 text-sm">
+              </h2>
+              <p>
                 {content.mesEnfantsDescription}
               </p>
-              
-              <div className="pt-2">
-                <span className="inline-block px-6 py-2 bg-red-700 text-white rounded-lg group-hover:bg-red-800 transition-colors duration-300">
-                  Déclarer →
-                </span>
-              </div>
-            </div>
+              <span className="member-event-action">Déclarer <ArrowRight aria-hidden="true" size={17} /></span>
           </button>
-
         </div>
 
-        <div className="mt-12 text-center">
-          <p className="text-gray-500 text-sm">
-            Vous devez être connecté pour vous inscrire aux événements
+        <div className="member-home-note">
+          <p>
+            Retrouvez ici vos inscriptions aux événements et vos démarches pour la famille.
           </p>
         </div>
       </div>

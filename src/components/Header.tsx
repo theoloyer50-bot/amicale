@@ -22,7 +22,6 @@ export function Header({ user, onLoginClick, onLogout }: HeaderProps) {
             />
             <div>
               <h1 className="text-xl sm:text-2xl">Amicale SP Tourlaville</h1>
-              <p className="text-sm text-red-100">Tourlaville - Manche</p>
             </div>
           </div>
 
