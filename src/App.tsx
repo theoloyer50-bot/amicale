@@ -212,8 +212,6 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <PhotoSlideshow />
-      
       {successMessage && (
         <div className="bg-green-50 border-l-4 border-green-500 p-4 mx-4 mt-4 rounded">
           <p className="text-green-800">{successMessage}</p>
@@ -312,6 +310,8 @@ export default function App() {
           />
         </>
       )}
+
+      <PhotoSlideshow />
     </div>
   );
 }

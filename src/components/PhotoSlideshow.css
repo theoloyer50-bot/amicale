@@ -1,0 +1,25 @@
+.photo-marquee {
+  animation: photo-marquee 80s linear infinite;
+}
+
+.photo-marquee:hover,
+.photo-marquee:focus-within {
+  animation-play-state: paused;
+}
+
+@keyframes photo-marquee {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-marquee {
+    animation: none;
+    transform: translateX(0);
+  }
+}

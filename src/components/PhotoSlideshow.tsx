@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import './PhotoSlideshow.css';
 
 const photos = [
   'PHOTO-2026-01-09-14-38-17.jpg',
@@ -29,55 +28,32 @@ const photos = [
 ];
 
 export function PhotoSlideshow() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setCurrentIndex((index) => (index + 1) % photos.length);
-    }, 5000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const showPrevious = () => {
-    setCurrentIndex((index) => (index - 1 + photos.length) % photos.length);
-  };
-
-  const showNext = () => {
-    setCurrentIndex((index) => (index + 1) % photos.length);
-  };
+  const renderPhotos = (isDuplicate: boolean) => (
+    <div
+      className="flex shrink-0 gap-3 pr-3"
+      aria-hidden={isDuplicate}
+    >
+      {photos.map((photo, index) => (
+        <img
+          key={photo}
+          src={`/${photo}`}
+          alt={isDuplicate ? '' : `Photo ${index + 1} de l'Amicale`}
+          loading="lazy"
+          className="h-20 w-32 shrink-0 rounded-lg object-cover shadow-md sm:h-28 sm:w-44 md:w-48"
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <section aria-label="Photos de l'Amicale" className="bg-gray-900 py-8 sm:py-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h2 className="mb-6 text-center text-2xl font-semibold text-white sm:text-3xl">
-          La vie de l'Amicale en images
-        </h2>
-        <div className="relative overflow-hidden rounded-2xl bg-black shadow-xl">
-          <img
-            src={`/${photos[currentIndex]}`}
-            alt={`Photo ${currentIndex + 1} sur ${photos.length} de l'Amicale des Sapeurs-Pompiers de Tourlaville`}
-            className="h-[280px] w-full object-contain sm:h-[440px]"
-          />
-          <button
-            type="button"
-            onClick={showPrevious}
-            aria-label="Photo précédente"
-            className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button
-            type="button"
-            onClick={showNext}
-            aria-label="Photo suivante"
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-          <p className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
-            {currentIndex + 1} / {photos.length}
-          </p>
+    <section aria-label="Photos de l'Amicale" className="bg-gray-900 py-5 sm:py-7">
+      <h2 className="mb-4 text-center text-lg font-semibold text-white sm:text-xl">
+        Quelques moments de l'Amicale
+      </h2>
+      <div className="overflow-hidden">
+        <div className="photo-marquee flex w-max">
+          {renderPhotos(false)}
+          {renderPhotos(true)}
         </div>
       </div>
     </section>
