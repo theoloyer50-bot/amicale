@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Trash2, Edit2, X, Upload, Save } from 'lucide-react';
+import { getOrMigrateSiteContent, saveSiteContent } from '../utils/firebase/siteContent';
 
 interface Document {
   id: string;
@@ -11,7 +12,7 @@ interface Document {
   uploadedBy?: string;
 }
 
-export function DocumentsEditor() {
+export function DocumentsEditor({ accessToken }: { accessToken: string }) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Document | null>(null);
@@ -28,23 +29,28 @@ export function DocumentsEditor() {
     loadDocuments();
   }, []);
 
-  const loadDocuments = () => {
-    const saved = localStorage.getItem('documents');
-    if (saved) {
-      try {
-        setDocuments(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading documents:', error);
-      }
+  const loadDocuments = async () => {
+    try {
+      const saved = await getOrMigrateSiteContent<Document[]>('documents', 'documents', accessToken);
+      setDocuments(saved || []);
+    } catch (error) {
+      console.error('Error loading documents:', error);
     }
   };
 
-  const saveDocuments = (docs: Document[]) => {
-    localStorage.setItem('documents', JSON.stringify(docs));
-    setDocuments(docs);
+  const saveDocuments = async (docs: Document[]): Promise<boolean> => {
+    try {
+      await saveSiteContent('documents', docs, accessToken);
+      setDocuments(docs);
+      return true;
+    } catch (error) {
+      console.error('Error saving documents:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de l\'enregistrement des documents');
+      return false;
+    }
   };
 
-  const handleAddDocument = () => {
+  const handleAddDocument = async () => {
     if (!formData.title || !formData.fileUrl) {
       alert('Le titre et le lien du fichier sont requis');
       return;
@@ -60,12 +66,12 @@ export function DocumentsEditor() {
       uploadedBy: 'admin'
     };
 
-    saveDocuments([...documents, newDoc]);
+    if (!(await saveDocuments([...documents, newDoc]))) return;
     resetForm();
     setIsAddModalOpen(false);
   };
 
-  const handleUpdateDocument = () => {
+  const handleUpdateDocument = async () => {
     if (!editingDoc || !formData.title || !formData.fileUrl) {
       alert('Le titre et le lien du fichier sont requis');
       return;
@@ -84,14 +90,14 @@ export function DocumentsEditor() {
         : doc
     );
 
-    saveDocuments(updatedDocs);
+    if (!(await saveDocuments(updatedDocs))) return;
     resetForm();
     setEditingDoc(null);
   };
 
-  const handleDeleteDocument = (id: string) => {
+  const handleDeleteDocument = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
-      saveDocuments(documents.filter(doc => doc.id !== id));
+      await saveDocuments(documents.filter(doc => doc.id !== id));
     }
   };
 

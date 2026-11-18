@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, GraduationCap, Mail, Info } from 'lucide-react';
 import { DevenirJSP } from './DevenirJSP';
 import { Contact } from './Contact';
+import { getSiteContent } from '../utils/firebase/siteContent';
 
 interface PublicPageContent {
   apropos: {
@@ -26,15 +27,9 @@ export function PublicHomePage() {
   });
 
   useEffect(() => {
-    // Load content from localStorage
-    const saved = localStorage.getItem('publicPageContent');
-    if (saved) {
-      try {
-        setContent(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading public page content:', error);
-      }
-    }
+    getSiteContent<PublicPageContent>('public')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading public page content:', error));
   }, []);
 
   const handleCloseModal = () => {

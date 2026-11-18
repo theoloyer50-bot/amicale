@@ -86,6 +86,53 @@ app.get("/make-server-3b9ea24b/health", (c) => {
   return c.json({ status: "ok" });
 });
 
+const SITE_CONTENT_KEYS = new Set(["homepage", "hero", "jsp", "public", "documents"]);
+
+app.get("/make-server-3b9ea24b/site-content/:key", async (c) => {
+  const key = c.req.param("key");
+  if (!SITE_CONTENT_KEYS.has(key)) return c.json({ error: "Contenu introuvable" }, 404);
+
+  if (key === "documents") {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) return c.json({ error: "Unauthorized" }, 401);
+    const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
+    if (error || !user) return c.json({ error: "Unauthorized" }, 401);
+    const status = await kv.get(`user_status:${user.id}`);
+    if (status?.status !== "approved") return c.json({ error: "Account not approved" }, 403);
+  }
+
+  try {
+    const content = await kv.get(`site_content:${key}`);
+    return c.json({ content: content ?? null });
+  } catch (error) {
+    console.error("Error fetching site content:", error);
+    return c.json({ error: "Erreur lors du chargement du contenu" }, 500);
+  }
+});
+
+app.put("/make-server-3b9ea24b/site-content/:key", async (c) => {
+  const key = c.req.param("key");
+  if (!SITE_CONTENT_KEYS.has(key)) return c.json({ error: "Contenu introuvable" }, 404);
+
+  const accessToken = c.req.header("Authorization")?.split(" ")[1];
+  if (!accessToken) return c.json({ error: "Unauthorized" }, 401);
+  const { data: { user }, error } = await firebaseAuthProvider.auth.getUser(accessToken);
+  if (error || !user) return c.json({ error: "Unauthorized" }, 401);
+  if (!(await isUserAdmin(user.id))) return c.json({ error: "Admin access required" }, 403);
+
+  try {
+    const { content } = await c.req.json();
+    if (content === undefined || content === null || typeof content !== "object") {
+      return c.json({ error: "Contenu invalide" }, 400);
+    }
+    await kv.set(`site_content:${key}`, content);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error saving site content:", error);
+    return c.json({ error: "Erreur lors de l'enregistrement du contenu" }, 500);
+  }
+});
+
 // Login endpoint
 app.post("/make-server-3b9ea24b/login", async (c) => {
   try {
@@ -285,7 +332,7 @@ app.post('/make-server-3b9ea24b/setup-super-admin', async (c) => {
     const SUPER_ADMIN_EMAIL = 'theo.loyer@sdis50.fr';
     
     // Récupérer l'utilisateur par email
-    const { data: users, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
+    const { data: { users }, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (getUserError) {
       console.error('Error listing users:', getUserError);
@@ -342,7 +389,7 @@ app.post('/make-server-3b9ea24b/create-default-admin', async (c) => {
     }
     
     // Vérifier si le compte existe déjà
-    const { data: users, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
+    const { data: { users }, error: getUserError } = await firebaseAuthProvider.auth.admin.listUsers();
     
     if (getUserError) {
       console.error('Error listing users:', getUserError);
@@ -1993,7 +2040,7 @@ app.post("/make-server-3b9ea24b/admin/toggle-user-activation", async (c) => {
     if (!isActive) {
       try {
         console.log('[Toggle User Activation] Signing out all sessions for user:', userId);
-        await firebaseAuthProvider.auth.admin.signOut(userId, 'global');
+        await firebaseAuthProvider.auth.admin.signOut(userId);
         console.log('[Toggle User Activation] All sessions signed out successfully');
       } catch (signOutError) {
         console.error('[Toggle User Activation] Error signing out user sessions:', signOutError);
@@ -2422,7 +2469,7 @@ export const api = onRequest(
       const request = new Request(requestUrl, {
         method: req.method,
         headers,
-        ...(req.method === "GET" || req.method === "HEAD" ? {} : { body: req.rawBody }),
+        ...(req.method === "GET" || req.method === "HEAD" ? {} : { body: new Uint8Array(req.rawBody) }),
       });
       const response = await app.fetch(request);
       res.status(response.status);

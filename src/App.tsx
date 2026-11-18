@@ -242,6 +242,7 @@ export default function App() {
           
           {/* Member Area - shown for all connected users */}
           <MemberArea 
+            accessToken={accessToken}
             user={user} 
             userStatus={user.userStatus}
             onChangePassword={() => setShowPasswordChangeModal(true)}

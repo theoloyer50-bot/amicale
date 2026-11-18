@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Edit, Save, X, Image } from 'lucide-react';
+import { getOrMigrateSiteContent, getSiteContent, saveSiteContent } from '../utils/firebase/siteContent';
 
 interface HeroEditorProps {
   accessToken: string;
@@ -26,13 +27,18 @@ export function HeroEditor({ accessToken }: HeroEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  useEffect(() => {
+    getOrMigrateSiteContent<HeroContent>('hero', 'heroContent', accessToken)
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading hero content:', error));
+  }, [accessToken]);
+
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
 
     try {
-      // Save to localStorage
-      localStorage.setItem('heroContent', JSON.stringify(content));
+      await saveSiteContent('hero', content, accessToken);
       
       setMessage({ type: 'success', text: 'Contenu de la page d\'accueil enregistré avec succès !' });
       setIsEditing(false);
@@ -52,11 +58,9 @@ export function HeroEditor({ accessToken }: HeroEditorProps) {
   const handleCancel = () => {
     setIsEditing(false);
     setMessage(null);
-    // Reload content from localStorage if exists
-    const saved = localStorage.getItem('heroContent');
-    if (saved) {
-      setContent(JSON.parse(saved));
-    }
+    getSiteContent<HeroContent>('hero')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error restoring hero content:', error));
   };
 
   if (!isEditing) {

@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, X, Users, Lock, AlertCircle, UserPlus, Trash2 } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import {
+  addManualSainteBarbeReservation,
+  getEventRegistrationStatus,
+  getMySainteBarbeRegistration,
+  listSainteBarbeTables,
+  removeSainteBarbeReservation,
+  saveSainteBarbeRegistration,
+} from '../utils/firebase/siteData';
 
 interface InscriptionsSainteBarbeModalProps {
   isOpen: boolean;
@@ -57,13 +64,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
 
   const fetchRegistrationStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE}/registration-status/sainte-barbe`, {
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRegistrationStatus(data);
-      }
+      setRegistrationStatus(await getEventRegistrationStatus('sainte-barbe'));
     } catch (error) {
       console.error('Error fetching registration status:', error);
     }
@@ -71,20 +72,17 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
 
   const fetchMyRegistration = async () => {
     try {
-      const response = await fetch(`${API_BASE}/events/sainte-barbe/my-registration`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.registration && data.table) {
-          setMyRegistration(data.registration);
-          setMyTable(data.table);
-          setNumberOfGuests(data.registration.numberOfGuests);
-          setSelectedTable(data.registration.tableNumber);
-        }
+      const registration = await getMySainteBarbeRegistration(user.id);
+      if (registration) {
+        const allTables = await listSainteBarbeTables();
+        const table = allTables.find((item) => item.tableNumber === (registration as any).tableNumber);
+        setMyRegistration(registration);
+        setMyTable(table || null);
+        setNumberOfGuests(registration.numberOfGuests);
+        setSelectedTable((registration as any).tableNumber);
+      } else {
+        setMyRegistration(null);
+        setMyTable(null);
       }
     } catch (error) {
       console.error('Error fetching my registration:', error);
@@ -94,21 +92,12 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
   const fetchTables = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE}/events/sainte-barbe/tables`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTables(data.tables || []);
-        
-        const userRegistered = data.tables.some((table: Table) =>
+      const data = await listSainteBarbeTables();
+      setTables(data);
+      const userRegistered = data.some((table: Table) =>
           table.participants.some(p => p.userId === user.id)
         );
-        setIsRegistered(userRegistered);
-      }
+      setIsRegistered(userRegistered);
     } catch (error) {
       console.error('Error fetching tables:', error);
       setError('Erreur lors du chargement des tables');
@@ -134,32 +123,15 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/events/sainte-barbe/register`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          numberOfGuests,
-          tableNumber: selectedTable
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setIsRegistered(true);
-        setSuccessMessage('Inscription réussie !');
-        setTimeout(() => setSuccessMessage(null), 3000);
-        fetchMyRegistration();
-        fetchTables();
-      } else {
-        setError(data.error || 'Erreur lors de l\'inscription');
-      }
+      await saveSainteBarbeRegistration(selectedTable, numberOfGuests);
+      setIsRegistered(true);
+      setSuccessMessage('Inscription réussie !');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await fetchMyRegistration();
+      await fetchTables();
     } catch (error) {
       console.error('Error submitting registration:', error);
-      setError('Erreur lors de l\'inscription');
+      setError(error instanceof Error ? error.message : 'Erreur lors de l\'inscription');
     } finally {
       setIsSubmitting(false);
     }
@@ -184,39 +156,14 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/events/sainte-barbe/add-participant`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tableNumber: addModalTable,
-          participantName: newParticipantName,
-          numberOfGuests: newParticipantGuests
-        })
-      });
-
-      if (response.ok) {
-        setSuccessMessage('Participant ajouté avec succès');
-        setTimeout(() => setSuccessMessage(null), 3000);
-        setShowAddModal(false);
-        setNewParticipantName('');
-        setNewParticipantGuests(1);
-        setAddModalTable(null);
-        fetchTables();
-      } else {
-        const text = await response.text();
-        let message = text;
-        try {
-          const data = JSON.parse(text);
-          message = data.error || data.message || JSON.stringify(data);
-        } catch (err) {
-          // not JSON, keep text
-        }
-        console.error('Add participant failed', response.status, message);
-        setError(`Erreur ${response.status} : ${message}`);
-      }
+      await addManualSainteBarbeReservation(addModalTable, newParticipantName, newParticipantGuests);
+      setSuccessMessage('Participant ajouté avec succès');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      setShowAddModal(false);
+      setNewParticipantName('');
+      setNewParticipantGuests(1);
+      setAddModalTable(null);
+      await fetchTables();
     } catch (error) {
       console.error('Error adding participant:', error);
       setError(error instanceof Error ? error.message : 'Erreur lors de l\'ajout');
@@ -234,34 +181,10 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/events/sainte-barbe/remove-participant`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tableNumber,
-          participantUserId
-        })
-      });
-
-      if (response.ok) {
-        setSuccessMessage('Participant retiré avec succès');
-        setTimeout(() => setSuccessMessage(null), 3000);
-        fetchTables();
-      } else {
-        const text = await response.text();
-        let message = text;
-        try {
-          const data = JSON.parse(text);
-          message = data.error || data.message || JSON.stringify(data);
-        } catch (err) {
-          // not JSON
-        }
-        console.error('Remove participant failed', response.status, message);
-        setError(`Erreur ${response.status} : ${message}`);
-      }
+      await removeSainteBarbeReservation(tableNumber, participantUserId);
+      setSuccessMessage('Participant retiré avec succès');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      await fetchTables();
     } catch (error) {
       console.error('Error removing participant:', error);
       setError(error instanceof Error ? error.message : 'Erreur lors de la suppression');
@@ -348,7 +271,7 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
 
                 <div className="mb-6">
                   <label className="block text-gray-700 mb-2">
-                    Sélectionnez votre table * (10 places max par table)
+                    Sélectionnez votre table * (10 places et 5 inscriptions maximum par table)
                   </label>
                   
                   {error && (
@@ -367,8 +290,9 @@ export function InscriptionsSainteBarbeModal({ isOpen, onClose, user, accessToke
                       {tables.map((table) => {
                         const isCurrentTable = isRegistered && myRegistration && table.tableNumber === myRegistration.tableNumber;
                         const availableSeats = isCurrentTable ? table.totalSeats - myRegistration.numberOfGuests : table.totalSeats;
-                        const isAvailable = availableSeats + numberOfGuests <= 10;
-                        const isFull = table.totalSeats >= 10;
+                        const hasReservationSlot = Boolean(isCurrentTable) || table.participants.length < 5;
+                        const isAvailable = hasReservationSlot && availableSeats + numberOfGuests <= 10;
+                        const isFull = table.totalSeats >= 10 || table.participants.length >= 5;
                         
                         return (
                           <div

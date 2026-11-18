@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Edit, Save, X } from 'lucide-react';
+import { getOrMigrateSiteContent, getSiteContent, saveSiteContent } from '../utils/firebase/siteContent';
 
 interface DevenirJSPEditorProps {
   accessToken: string;
@@ -20,12 +21,18 @@ export function DevenirJSPEditor({ accessToken }: DevenirJSPEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  useEffect(() => {
+    getOrMigrateSiteContent<DevenirJSPContent>('jsp', 'devenirJSPContent', accessToken)
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading JSP content:', error));
+  }, [accessToken]);
+
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
 
     try {
-      localStorage.setItem('devenirJSPContent', JSON.stringify(content));
+      await saveSiteContent('jsp', content, accessToken);
       
       setMessage({ type: 'success', text: 'Contenu de la section JSP enregistré avec succès !' });
       setIsEditing(false);
@@ -44,14 +51,9 @@ export function DevenirJSPEditor({ accessToken }: DevenirJSPEditorProps) {
   const handleCancel = () => {
     setIsEditing(false);
     setMessage(null);
-    const saved = localStorage.getItem('devenirJSPContent');
-    if (saved) {
-      const parsedContent = JSON.parse(saved);
-      setContent({
-        title: parsedContent.title || content.title,
-        subtitle: parsedContent.subtitle || content.subtitle,
-      });
-    }
+    getSiteContent<DevenirJSPContent>('jsp')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error restoring JSP content:', error));
   };
 
   if (!isEditing) {

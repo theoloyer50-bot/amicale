@@ -1,5 +1,6 @@
 import { Calendar, Gift, FileText, Baby, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { getSiteContent } from '../utils/firebase/siteContent';
 
 interface HomePageProps {
   onSainteBarbeClick: () => void;
@@ -38,15 +39,9 @@ export function HomePage({ onSainteBarbeClick, onNoelClick, onMesEnfantsClick, o
   });
 
   useEffect(() => {
-    // Load content from localStorage if exists
-    const saved = localStorage.getItem('homePageContent');
-    if (saved) {
-      try {
-        setContent(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading homepage content:', error);
-      }
-    }
+    getSiteContent<HomePageContent>('homepage')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading homepage content:', error));
   }, []);
 
   return (

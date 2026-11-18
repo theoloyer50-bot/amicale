@@ -1,17 +1,16 @@
-import { serverApiBase as API_BASE } from './firebase/info';
-
-// Health check to verify server is accessible
-export async function checkServerHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/health`, {
-      method: 'GET'
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('Health check failed:', error);
-    return false;
-  }
-}
+import {
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+  updateProfile,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { get, ref, set, update } from 'firebase/database';
+import { firebaseAuth, firebaseDatabase } from './firebase/client';
 
 interface User {
   id: string;
@@ -23,6 +22,7 @@ interface User {
   userStatus?: {
     status: 'approved' | 'pending' | 'rejected';
     createdAt?: string;
+    role?: 'membre' | 'superviseur' | 'admin';
   };
 }
 
@@ -36,225 +36,158 @@ interface SignupResponse {
   message: string;
 }
 
+const readProfile = async (firebaseUser: FirebaseUser) => {
+  const uid = firebaseUser.uid;
+    const statusSnapshot = await get(ref(firebaseDatabase, `kv/memberAccounts/${uid}`));
+  const userStatus = statusSnapshot.val() || null;
+    const role = userStatus?.role || 'membre';
+    const isApproved = userStatus?.status === 'approved';
+
+  return {
+    userStatus,
+    role,
+    isApproved,
+    isRejected: userStatus?.status === 'rejected',
+      mustChangePassword: userStatus?.mustChangePassword === true,
+  };
+};
+
+const toAppUser = (firebaseUser: FirebaseUser, profile: Awaited<ReturnType<typeof readProfile>>): User => ({
+  id: firebaseUser.uid,
+  email: firebaseUser.email || '',
+  name: profile.userStatus?.name || firebaseUser.displayName || firebaseUser.email || '',
+  isAdmin: profile.role === 'admin',
+  role: profile.role,
+  mustChangePassword: profile.mustChangePassword,
+  userStatus: profile.userStatus || { status: profile.isApproved ? 'approved' : 'pending', role: profile.role },
+});
+
+function authErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code;
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+    return 'Adresse e-mail ou mot de passe incorrect.';
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'La connexion par e-mail/mot de passe est désactivée dans Firebase Authentication.';
+  }
+  if (code === 'auth/too-many-requests') return 'Trop de tentatives. Réessaie plus tard.';
+  if (code === 'auth/network-request-failed') return 'Connexion impossible. Vérifie ta connexion Internet.';
+  return error instanceof Error ? error.message : 'Erreur d’authentification.';
+}
+
+// Authentification et stockage utilisent directement Firebase : aucune Cloud Function requise.
+export async function checkServerHealth(): Promise<boolean> {
+  return true;
+}
+
 export async function login(email: string, password: string): Promise<AuthResponse> {
   try {
-    const response = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Erreur de connexion';
-      const text = await response.text();
-      try {
-        const error = JSON.parse(text);
-        errorMessage = error.error || errorMessage;
-      } catch (e) {
-        // If response is not JSON
-        console.error('Server error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
-      }
-      throw new Error(errorMessage);
+    const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+    const profile = await readProfile(credential.user);
+    if (profile.isRejected) {
+      await signOut(firebaseAuth);
+      throw new Error('Ce compte a été désactivé. Contacte un administrateur.');
     }
-
-    const data = await response.json();
+    if (!profile.isApproved) {
+      await signOut(firebaseAuth);
+      throw new Error('Ton compte est en attente d’approbation par un administrateur.');
+    }
     return {
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        isAdmin: data.user.isAdmin || data.user.role === 'admin',
-        role: data.user.role,
-        mustChangePassword: data.user.mustChangePassword
-      },
-      access_token: data.access_token,
-      refresh_token: data.refresh_token
+      user: toAppUser(credential.user, profile),
+      access_token: await credential.user.getIdToken(),
+      refresh_token: credential.user.refreshToken,
     };
   } catch (error) {
-    console.error('Login exception:', error);
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
-    }
-    throw error;
+    throw new Error(authErrorMessage(error));
   }
 }
 
 export async function signup(email: string, password: string, name: string): Promise<SignupResponse> {
+  const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
   try {
-    console.log('Signup request to:', `${API_BASE}/signup`);
-    console.log('With data:', { email, name });
-    
-    const response = await fetch(`${API_BASE}/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, name })
+    await updateProfile(credential.user, { displayName: name.trim() });
+    await set(ref(firebaseDatabase, `kv/memberAccounts/${credential.user.uid}`), {
+      userId: credential.user.uid,
+      status: 'pending',
+      email: email.trim(),
+      name: name.trim(),
+      role: 'membre',
+      isAdmin: false,
+      createdAt: new Date().toISOString(),
     });
-
-    console.log('Signup response status:', response.status);
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.log('Signup error:', error);
-      throw new Error(error.error || 'Erreur d\'inscription');
-    }
-
-    const data = await response.json();
-    console.log('Signup success:', data);
-    return {
-      message: data.message
-    };
+    await signOut(firebaseAuth);
+    return { message: 'Compte créé. Il sera accessible après validation par un administrateur.' };
   } catch (error) {
-    console.error('Signup exception:', error);
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
-    }
-    throw error;
+    await signOut(firebaseAuth).catch(() => undefined);
+    throw new Error(authErrorMessage(error));
   }
 }
 
-export async function getSession(accessToken: string): Promise<User> {
-  try {
-    const response = await fetch(`${API_BASE}/session`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Session invalide';
-      const text = await response.text();
-      try {
-        const error = JSON.parse(text);
-        errorMessage = error.error || errorMessage;
-      } catch (e) {
-        console.error('Session error (non-JSON):', text);
-        errorMessage = 'Erreur serveur lors de la vérification de session.';
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return {
-      id: data.user.id,
-      email: data.user.email,
-      name: data.user.name,
-      isAdmin: data.user.isAdmin || data.user.role === 'admin',
-      role: data.user.role,
-      mustChangePassword: data.user.mustChangePassword,
-      userStatus: data.userStatus
-    };
-  } catch (error) {
-    console.error('getSession exception:', error);
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur.');
-    }
-    throw error;
-  }
+export async function getSession(_accessToken?: string): Promise<User> {
+  await firebaseAuth.authStateReady();
+  const firebaseUser = firebaseAuth.currentUser;
+  if (!firebaseUser) throw new Error('Session expirée. Veuillez vous reconnecter.');
+  const profile = await readProfile(firebaseUser);
+  if (profile.isRejected || !profile.isApproved) throw new Error('Ce compte n’est pas approuvé.');
+  return toAppUser(firebaseUser, profile);
 }
 
-export function saveAuth(user: User, accessToken: string, refreshToken: string): void {
+export function saveAuth(user: User, accessToken: string, refreshToken = ''): void {
   localStorage.setItem('auth', JSON.stringify({ user, accessToken, refreshToken }));
 }
 
 export function getStoredAuth(): { user: User; accessToken: string; refreshToken: string } | null {
-  const stored = localStorage.getItem('auth');
-  if (!stored) return null;
-  const authData = JSON.parse(stored);
-  if (!authData.refreshToken) return null;
-  return authData;
+  try {
+    const stored = localStorage.getItem('auth');
+    if (!stored) return null;
+    const authData = JSON.parse(stored);
+    return authData?.user ? authData : null;
+  } catch {
+    localStorage.removeItem('auth');
+    return null;
+  }
 }
 
-export async function restoreSession(stored: { user: User; accessToken: string; refreshToken: string }) {
-  const response = await fetch(`${API_BASE}/refresh-session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: stored.refreshToken })
-  });
-  if (!response.ok) throw new Error('Session expirée. Veuillez vous reconnecter.');
-
-  const tokens = await response.json();
-  const user = await getSession(tokens.access_token);
-  return { user, accessToken: tokens.access_token, refreshToken: tokens.refresh_token };
+export async function restoreSession(_stored?: { user: User; accessToken: string; refreshToken: string }) {
+  await firebaseAuth.authStateReady();
+  const firebaseUser = firebaseAuth.currentUser;
+  if (!firebaseUser) throw new Error('Session expirée. Veuillez vous reconnecter.');
+  const user = await getSession();
+  return {
+    user,
+    accessToken: await firebaseUser.getIdToken(),
+    refreshToken: firebaseUser.refreshToken,
+  };
 }
 
 export function clearAuth(): void {
   localStorage.removeItem('auth');
+  void signOut(firebaseAuth);
 }
 
 export async function resetPassword(email: string): Promise<{ message: string }> {
   try {
-    const response = await fetch(`${API_BASE}/reset-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email })
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Erreur lors de la réinitialisation du mot de passe';
-      const text = await response.text();
-      try {
-        const error = JSON.parse(text);
-        errorMessage = error.error || errorMessage;
-      } catch (e) {
-        console.error('Reset password error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return {
-      message: data.message
-    };
+    await sendPasswordResetEmail(firebaseAuth, email.trim());
+    return { message: 'Si un compte existe pour cette adresse, un e-mail de réinitialisation a été envoyé.' };
   } catch (error) {
-    console.error('resetPassword exception:', error);
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
-    }
-    throw error;
+    throw new Error(authErrorMessage(error));
   }
 }
 
-export async function changePassword(accessToken: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
+export async function changePassword(_accessToken: string, _currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  const user = firebaseAuth.currentUser;
+  if (!user?.email) throw new Error('Session expirée. Veuillez vous reconnecter.');
   try {
-    const response = await fetch(`${API_BASE}/change-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ currentPassword, newPassword })
+    const credential = EmailAuthProvider.credential(user.email, _currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
+    const now = new Date().toISOString();
+    await update(ref(firebaseDatabase, `kv/memberAccounts/${user.uid}`), {
+      mustChangePassword: false,
+      passwordChangedAt: now,
     });
-
-    if (!response.ok) {
-      let errorMessage = 'Erreur lors du changement de mot de passe';
-      const text = await response.text();
-      try {
-        const error = JSON.parse(text);
-        errorMessage = error.error || errorMessage;
-      } catch (e) {
-        console.error('Change password error (non-JSON):', text);
-        errorMessage = 'Erreur serveur. Veuillez vérifier que Firebase Functions est déployé.';
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return {
-      message: data.message
-    };
+    return { message: 'Mot de passe modifié avec succès.' };
   } catch (error) {
-    console.error('changePassword exception:', error);
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Impossible de contacter le serveur Firebase. Vérifiez le déploiement de la fonction API.');
-    }
-    throw error;
+    throw new Error(authErrorMessage(error));
   }
 }

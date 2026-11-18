@@ -1,6 +1,94 @@
 {
   "rules": {
     ".read": false,
-    ".write": false
+    ".write": false,
+    "kv": {
+      "memberAccounts": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+          ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && !data.exists() && newData.child('status').val() === 'pending' && newData.child('role').val() === 'membre' && newData.child('isAdmin').val() === false) || (auth.uid === $uid && data.exists() && newData.child('status').val() === data.child('status').val() && newData.child('role').val() === data.child('role').val() && newData.child('email').val() === data.child('email').val() && newData.child('name').val() === data.child('name').val() && newData.child('isAdmin').val() === data.child('isAdmin').val() && newData.child('createdAt').val() === data.child('createdAt').val()))"
+        }
+      },
+      "memberDirectory": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved')",
+          ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+        }
+      },
+      "site_content:homepage": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:hero": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:jsp": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:public": {
+        ".read": true,
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "site_content:documents": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+      },
+      "eventSettings": {
+        "$event": {
+          ".read": true,
+          ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'"
+        }
+      },
+      "noelRegistrations": {
+        ".read": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+          ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved' && root.child('kv/eventSettings/noel/isOpen').val() !== false))",
+          ".validate": "!newData.exists() || (newData.child('userId').val() === $uid && newData.child('numberOfAdults').isNumber() && newData.child('numberOfAdults').val() >= 1 && newData.child('numberOfAdults').val() <= 20 && newData.child('numberOfChildren').isNumber() && newData.child('numberOfChildren').val() >= 0 && newData.child('numberOfChildren').val() <= 20)"
+        }
+      },
+      "children": {
+        ".read": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+          "$childId": {
+            ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'))",
+            ".validate": "!newData.exists() || (newData.child('id').val() === $childId && newData.child('userId').val() === $uid && newData.child('nom').isString() && newData.child('prenom').isString() && newData.child('dateNaissance').isString())"
+          }
+        }
+      },
+      "sainteBarbeTableCount": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 15"
+      },
+      "sainteBarbeUserIndex": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'superviseur')",
+          ".write": "auth != null && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $uid && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved' && ((!newData.exists() && data.exists() && (!root.child('kv/sainteBarbeTables/' + data.child('tableKey').val() + '/slots/' + data.child('slotKey').val()).exists() || root.child('kv/sainteBarbeTables/' + data.child('tableKey').val() + '/slots/' + data.child('slotKey').val() + '/userId').val() !== $uid)) || (newData.exists() && root.child('kv/eventSettings/sainte-barbe/isOpen').val() !== false && (!data.exists() || !root.child('kv/sainteBarbeTables/' + data.child('tableKey').val() + '/slots/' + data.child('slotKey').val()).exists() || root.child('kv/sainteBarbeTables/' + data.child('tableKey').val() + '/slots/' + data.child('slotKey').val() + '/userId').val() !== $uid)))))",
+          ".validate": "!newData.exists() || (newData.child('tableKey').isString() && newData.child('tableKey').val().matches(/^(1[0-5]|[1-9])$/) && newData.child('slotKey').isString() && newData.child('slotKey').val().matches(/^[1-5]$/))"
+        }
+      },
+      "sainteBarbeTables": {
+        ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+        ".write": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin'",
+        "$table": {
+          ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+          "slots": {
+            "$slot": {
+              ".read": "auth != null && root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved'",
+              ".write": "auth != null && $table.matches(/^(1[0-5]|[1-9])$/) && $slot.matches(/^[1-5]$/) && (root.child('kv/memberAccounts/' + auth.uid + '/role').val() === 'admin' || (root.child('kv/memberAccounts/' + auth.uid + '/status').val() === 'approved' && ((newData.exists() && newData.child('userId').val() === auth.uid && root.child('kv/eventSettings/sainte-barbe/isOpen').val() !== false && root.child('kv/sainteBarbeUserIndex/' + auth.uid + '/tableKey').val() === $table && root.child('kv/sainteBarbeUserIndex/' + auth.uid + '/slotKey').val() === $slot && (!data.exists() || data.child('userId').val() === auth.uid)) || (!newData.exists() && data.child('userId').val() === auth.uid && root.child('kv/sainteBarbeUserIndex/' + auth.uid + '/tableKey').val() === $table && root.child('kv/sainteBarbeUserIndex/' + auth.uid + '/slotKey').val() === $slot))))",
+              ".validate": "!newData.exists() || (newData.child('userId').isString() && newData.child('name').isString() && newData.child('numberOfGuests').isNumber() && newData.child('numberOfGuests').val() >= 1 && newData.child('numberOfGuests').val() <= 2 && newData.child('tableNumber').isNumber() && newData.child('slotNumber').isNumber())"
+            }
+          }
+        }
+      }
+    }
   }
 }

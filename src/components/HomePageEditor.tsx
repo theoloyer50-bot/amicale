@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Edit, Save, X } from 'lucide-react';
+import { getOrMigrateSiteContent, getSiteContent, saveSiteContent } from '../utils/firebase/siteContent';
 
 interface HomePageEditorProps {
   accessToken: string;
@@ -34,13 +35,18 @@ export function HomePageEditor({ accessToken }: HomePageEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  useEffect(() => {
+    getOrMigrateSiteContent<HomePageContent>('homepage', 'homePageContent', accessToken)
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading homepage content:', error));
+  }, [accessToken]);
+
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
 
     try {
-      // Save to localStorage until the editor is connected to Firebase.
-      localStorage.setItem('homePageContent', JSON.stringify(content));
+      await saveSiteContent('homepage', content, accessToken);
       
       setMessage({ type: 'success', text: 'Contenu enregistré avec succès !' });
       setIsEditing(false);
@@ -60,11 +66,9 @@ export function HomePageEditor({ accessToken }: HomePageEditorProps) {
   const handleCancel = () => {
     setIsEditing(false);
     setMessage(null);
-    // Reload content from localStorage if exists
-    const saved = localStorage.getItem('homePageContent');
-    if (saved) {
-      setContent(JSON.parse(saved));
-    }
+    getSiteContent<HomePageContent>('homepage')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error restoring homepage content:', error));
   };
 
   if (!isEditing) {

@@ -2,6 +2,7 @@ import { Calendar, Users, User, Shield, Check, Clock, Lock, FileText } from 'luc
 import { Documents } from './Documents';
 
 interface MemberAreaProps {
+  accessToken: string;
   user: { 
     id: string; 
     email: string; 
@@ -15,7 +16,7 @@ interface MemberAreaProps {
   onChangePassword?: () => void;
 }
 
-export function MemberArea({ user, userStatus, onChangePassword }: MemberAreaProps) {
+export function MemberArea({ accessToken, user, userStatus, onChangePassword }: MemberAreaProps) {
   const upcomingEvents = [
     { title: 'Assemblée Générale', date: '15 Janvier 2026' },
     { title: 'Journée Portes Ouvertes', date: '15 Mars 2026' },
@@ -150,7 +151,7 @@ export function MemberArea({ user, userStatus, onChangePassword }: MemberAreaPro
               <FileText className="w-6 h-6 text-red-700" />
               <h3 className="text-2xl text-gray-900">Documents</h3>
             </div>
-            <Documents isModal={true} />
+            <Documents accessToken={accessToken} isModal={true} />
           </div>
 
           {/* Annuaire card removed per request */}

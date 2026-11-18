@@ -1,6 +1,6 @@
 import { X, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
-import { serverApiBase } from '../utils/firebase/info';
+import { changePassword } from '../utils/auth';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface ChangePasswordModalProps {
 }
 
 export function ChangePasswordModal({ isOpen, isMandatory, accessToken, onSuccess, onCancel }: ChangePasswordModalProps) {
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,23 +36,9 @@ export function ChangePasswordModal({ isOpen, isMandatory, accessToken, onSucces
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${serverApiBase}/change-password`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({ newPassword })
-        }
-      );
+      await changePassword(accessToken, currentPassword, newPassword);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors du changement de mot de passe');
-      }
-
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       onSuccess();
@@ -96,6 +83,21 @@ export function ChangePasswordModal({ isOpen, isMandatory, accessToken, onSucces
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
+
+          <div>
+            <label htmlFor="currentPassword" className="block text-gray-700 mb-2">
+              Mot de passe actuel ou temporaire
+            </label>
+            <input
+              type="password"
+              id="currentPassword"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-700 focus:border-transparent outline-none"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
 
           <div>
             <label htmlFor="newPassword" className="block text-gray-700 mb-2">

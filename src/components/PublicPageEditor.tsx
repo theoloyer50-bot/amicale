@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, Eye, Info } from 'lucide-react';
+import { getOrMigrateSiteContent, getSiteContent, saveSiteContent } from '../utils/firebase/siteContent';
 
 interface PublicPageContent {
   apropos: {
@@ -8,7 +9,7 @@ interface PublicPageContent {
   };
 }
 
-export function PublicPageEditor() {
+export function PublicPageEditor({ accessToken }: { accessToken: string }) {
   const [content, setContent] = useState<PublicPageContent>({
     apropos: {
       mission: "L'Amicale des Sapeurs Pompiers de Tourlaville est une association dont la mission principale est de soutenir et d'accompagner nos sapeurs-pompiers volontaires et professionnels dans leur engagement au service de la population. Nous œuvrons pour renforcer les liens de solidarité et de convivialité au sein de notre communauté.",
@@ -25,21 +26,21 @@ export function PublicPageEditor() {
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    // Load content from localStorage
-    const saved = localStorage.getItem('publicPageContent');
-    if (saved) {
-      try {
-        setContent(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading public page content:', error);
-      }
-    }
-  }, []);
+    getOrMigrateSiteContent<PublicPageContent>('public', 'publicPageContent', accessToken)
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading public page content:', error));
+  }, [accessToken]);
 
-  const handleSave = () => {
-    localStorage.setItem('publicPageContent', JSON.stringify(content));
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      await saveSiteContent('public', content, accessToken);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (error) {
+      console.error('Error saving public page content:', error);
+      setIsSaved(false);
+      alert(error instanceof Error ? error.message : 'Erreur lors de l\'enregistrement');
+    }
   };
 
   const handleAddActivity = () => {

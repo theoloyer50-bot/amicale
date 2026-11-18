@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { getSiteContent } from '../utils/firebase/siteContent';
 
 interface HeroContent {
   title: string;
@@ -19,15 +20,9 @@ export function Hero() {
   });
 
   useEffect(() => {
-    // Load content from localStorage if exists
-    const saved = localStorage.getItem('heroContent');
-    if (saved) {
-      try {
-        setContent(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading hero content:', error);
-      }
-    }
+    getSiteContent<HeroContent>('hero')
+      .then((saved) => { if (saved) setContent((current) => ({ ...current, ...saved })); })
+      .catch((error) => console.error('Error loading hero content:', error));
   }, []);
 
   return (

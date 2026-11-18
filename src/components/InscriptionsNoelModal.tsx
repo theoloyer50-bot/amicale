@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Gift, X, Users, Lock, AlertCircle } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { getEventRegistrationStatus, getNoelRegistration, saveNoelRegistration } from '../utils/firebase/siteData';
 
 interface InscriptionsNoelModalProps {
   isOpen: boolean;
@@ -33,13 +33,7 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
 
   const fetchRegistrationStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE}/registration-status/noel`, {
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRegistrationStatus(data);
-      }
+      setRegistrationStatus(await getEventRegistrationStatus('noel'));
     } catch (error) {
       console.error('Error fetching registration status:', error);
     }
@@ -47,24 +41,15 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
 
   const fetchMyRegistration = async () => {
     try {
-      const response = await fetch(`${API_BASE}/events/noel/my-registration`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.registered && data.registration) {
-          setMyRegistration(data.registration);
-          setIsRegistered(true);
-          // Pré-remplir le formulaire avec les données actuelles
-          setNumberOfAdults(data.registration.numberOfAdults);
-          setNumberOfChildren(data.registration.numberOfChildren || 0);
-          setComments(data.registration.comments || '');
-        } else {
-          setIsRegistered(false);
-        }
+      const registration = await getNoelRegistration(user.id);
+      if (registration) {
+        setMyRegistration(registration);
+        setIsRegistered(true);
+        setNumberOfAdults(registration.numberOfAdults);
+        setNumberOfChildren(registration.numberOfChildren || 0);
+        setComments(registration.comments || '');
+      } else {
+        setIsRegistered(false);
       }
     } catch (error) {
       console.error('Error fetching my registration:', error);
@@ -82,30 +67,12 @@ export function InscriptionsNoelModal({ isOpen, onClose, user, accessToken }: In
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/events/noel/register`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          numberOfAdults,
-          numberOfChildren,
-          comments
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setIsRegistered(true);
-        fetchMyRegistration();
-      } else {
-        setError(data.error || 'Erreur lors de l\'inscription');
-      }
+      await saveNoelRegistration({ numberOfAdults, numberOfChildren, comments });
+      setIsRegistered(true);
+      await fetchMyRegistration();
     } catch (error) {
       console.error('Error submitting registration:', error);
-      setError('Erreur lors de l\'inscription');
+      setError(error instanceof Error ? error.message : 'Erreur lors de l\'inscription');
     } finally {
       setIsSubmitting(false);
     }

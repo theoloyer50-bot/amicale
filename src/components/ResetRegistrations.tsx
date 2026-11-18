@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
-import { serverApiBase as API_BASE } from '../utils/firebase/info';
+import { resetEventRegistrations } from '../utils/firebase/siteData';
 
 interface ResetRegistrationsProps {
   accessToken: string;
@@ -19,28 +19,8 @@ export function ResetRegistrations({ accessToken }: ResetRegistrationsProps) {
       setError(null);
       setSuccessMessage(null);
 
-      console.log('[ResetRegistrations] Calling Sainte-Barbe reset endpoint...');
-      console.log('[ResetRegistrations] API URL:', `${API_BASE}/events/sainte-barbe/reset`);
-      console.log('[ResetRegistrations] Access token:', accessToken ? 'Present' : 'Missing');
-
-      const response = await fetch(`${API_BASE}/events/sainte-barbe/reset`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('[ResetRegistrations] Response status:', response.status);
-      
-      const data = await response.json();
-      console.log('[ResetRegistrations] Response data:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de la réinitialisation');
-      }
-
-      setSuccessMessage(`✅ ${data.message || 'Inscriptions Sainte-Barbe réinitialisées avec succès'}`);
+      const count = await resetEventRegistrations('sainte-barbe');
+      setSuccessMessage(`✅ ${count} inscription(s) Sainte-Barbe réinitialisée(s).`);
       setShowSainteBarbeConfirm(false);
       
       // Clear success message after 5 seconds
@@ -59,21 +39,8 @@ export function ResetRegistrations({ accessToken }: ResetRegistrationsProps) {
       setError(null);
       setSuccessMessage(null);
 
-      const response = await fetch(`${API_BASE}/events/noel/reset`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la réinitialisation');
-      }
-
-      const data = await response.json();
-      setSuccessMessage(`✅ ${data.message || 'Inscriptions Noël réinitialisées avec succès'}`);
+      const count = await resetEventRegistrations('noel');
+      setSuccessMessage(`✅ ${count} inscription(s) Noël réinitialisée(s).`);
       setShowNoelConfirm(false);
       
       // Clear success message after 5 seconds
