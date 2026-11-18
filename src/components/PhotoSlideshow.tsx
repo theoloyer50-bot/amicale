@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import './PhotoSlideshow.css';
 
 const photos = [
@@ -30,9 +29,8 @@ const photos = [
 
 export function PhotoSlideshow() {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [isPaused, setIsPaused] = useState(() =>
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  const dragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -45,7 +43,7 @@ export function PhotoSlideshow() {
     const viewport = viewportRef.current;
     if (
       !viewport ||
-      isPaused ||
+      isDragging ||
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
       return;
@@ -68,26 +66,17 @@ export function PhotoSlideshow() {
 
     frameId = window.requestAnimationFrame(movePhotos);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isPaused]);
+  }, [isDragging]);
 
-  const scrollManually = (direction: 'left' | 'right') => {
+  const finishDragging = (pointerId: number) => {
     const viewport = viewportRef.current;
-    if (!viewport) return;
+    if (dragRef.current?.pointerId !== pointerId) return;
 
-    setIsPaused(true);
-    const loopPoint = viewport.scrollWidth / 2;
-    const distance = Math.min(viewport.clientWidth * 0.8, loopPoint / 2);
+    dragRef.current = null;
+    setIsDragging(false);
 
-    if (direction === 'left') {
-      if (viewport.scrollLeft + distance >= loopPoint) {
-        viewport.scrollLeft = 0;
-      }
-      viewport.scrollBy({ left: distance, behavior: 'smooth' });
-    } else {
-      if (viewport.scrollLeft <= distance) {
-        viewport.scrollLeft = loopPoint;
-      }
-      viewport.scrollBy({ left: -distance, behavior: 'smooth' });
+    if (viewport?.hasPointerCapture(pointerId)) {
+      viewport.releasePointerCapture(pointerId);
     }
   };
 
@@ -102,6 +91,7 @@ export function PhotoSlideshow() {
           src={`/${photo}`}
           alt={isDuplicate ? '' : `Photo ${index + 1} de l'Amicale`}
           loading="lazy"
+          draggable={false}
         />
       ))}
     </div>
@@ -109,37 +99,44 @@ export function PhotoSlideshow() {
 
   return (
     <section aria-label="Photos de l'Amicale" className="photo-gallery">
-      <div className="photo-gallery-viewport" ref={viewportRef}>
+      <div
+        className={`photo-gallery-viewport${isDragging ? ' is-dragging' : ''}`}
+        ref={viewportRef}
+        onPointerDown={(event) => {
+          if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+          const viewport = viewportRef.current;
+          if (!viewport) return;
+
+          dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startScrollLeft: viewport.scrollLeft,
+          };
+          setIsDragging(true);
+          viewport.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          const viewport = viewportRef.current;
+          if (!drag || drag.pointerId !== event.pointerId || !viewport) return;
+
+          event.preventDefault();
+          const loopPoint = viewport.scrollWidth / 2;
+          if (loopPoint <= 0) return;
+
+          const position = drag.startScrollLeft - (event.clientX - drag.startX);
+          viewport.scrollLeft = ((position % loopPoint) + loopPoint) % loopPoint;
+        }}
+        onPointerUp={(event) => finishDragging(event.pointerId)}
+        onPointerCancel={(event) => finishDragging(event.pointerId)}
+        onLostPointerCapture={(event) => finishDragging(event.pointerId)}
+        aria-label="Faites glisser les photos avec la souris ou le doigt"
+      >
         <div className="photo-marquee">
           {renderPhotos(false)}
           {renderPhotos(true)}
         </div>
-      </div>
-      <div className="photo-gallery-controls">
-        <button
-          type="button"
-          onClick={() => scrollManually('left')}
-          aria-label="Faire défiler les photos vers la gauche"
-          title="Défiler vers la gauche"
-        >
-          <ChevronLeft aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsPaused((paused) => !paused)}
-          aria-label={isPaused ? 'Reprendre le défilement automatique' : 'Mettre en pause le défilement automatique'}
-          title={isPaused ? 'Reprendre le défilement' : 'Mettre en pause'}
-        >
-          {isPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollManually('right')}
-          aria-label="Faire défiler les photos vers la droite"
-          title="Défiler vers la droite"
-        >
-          <ChevronRight aria-hidden="true" />
-        </button>
       </div>
     </section>
   );

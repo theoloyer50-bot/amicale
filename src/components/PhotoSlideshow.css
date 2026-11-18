@@ -7,6 +7,14 @@
   width: 100%;
   overflow: hidden;
   scroll-behavior: auto;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.photo-gallery-viewport.is-dragging {
+  cursor: grabbing;
 }
 
 .photo-marquee {
@@ -25,45 +33,11 @@
 .photo-strip img {
   display: block;
   flex: 0 0 auto;
-  width: clamp(200px, 22vw, 280px);
-  height: clamp(140px, 17vw, 200px);
+  width: clamp(240px, 26vw, 360px);
+  height: clamp(180px, 20vw, 260px);
   border-radius: 8px;
   background-color: #1f2937;
   object-fit: contain;
   box-shadow: 0 4px 10px rgb(0 0 0 / 25%);
 }
 
-.photo-gallery-controls {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  padding-top: 12px;
-}
-
-.photo-gallery-controls button {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgb(255 255 255 / 55%);
-  border-radius: 9999px;
-  color: #fff;
-  cursor: pointer;
-  transition: background-color 150ms ease;
-}
-
-.photo-gallery-controls button:hover {
-  background-color: rgb(255 255 255 / 15%);
-}
-
-.photo-gallery-controls button:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .photo-gallery-controls button {
-    transition: none;
-  }
-}
