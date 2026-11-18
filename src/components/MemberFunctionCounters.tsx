@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Briefcase, Flame, Stethoscope } from 'lucide-react';
+import { Award, Briefcase, Flame, HeartHandshake, Stethoscope } from 'lucide-react';
 import { onValue, ref } from 'firebase/database';
 import { firebaseDatabase } from '../utils/firebase/client';
 import {
@@ -9,6 +9,14 @@ import {
   createEmptyMemberFunctionCounts,
 } from '../utils/firebase/memberFunctions';
 import './MemberFunctionCounters.css';
+
+const FUNCTION_ICONS = {
+  spp: Flame,
+  spv: HeartHandshake,
+  'anciens-sp': Award,
+  sssm: Stethoscope,
+  pats: Briefcase,
+};
 
 export function MemberFunctionCounters() {
   const [counts, setCounts] = useState<MemberFunctionCounts | null>(null);
@@ -50,11 +58,7 @@ export function MemberFunctionCounters() {
       ) : (
         <div className="member-count-grid">
           {MEMBER_FUNCTIONS.map((memberFunction) => {
-            const Icon = memberFunction.value === 'sssm'
-              ? Stethoscope
-              : memberFunction.value === 'pats'
-                ? Briefcase
-                : Flame;
+            const Icon = FUNCTION_ICONS[memberFunction.value];
 
             return (
               <article className="member-count-card" key={memberFunction.value}>

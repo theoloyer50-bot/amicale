@@ -238,11 +238,6 @@ export default function App() {
             onSainteBarbeClick={() => handleEventClick('sainte-barbe')}
             onNoelClick={() => handleEventClick('noel')}
             onMesEnfantsClick={handleMesEnfantsClick}
-            onAnnuaireClick={() => {
-              // scroll to member area
-              const el = document.querySelector('#mon-espace');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
           />
           
           {/* Member Area - shown for all connected users */}
