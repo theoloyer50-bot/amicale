@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Facebook } from 'lucide-react';
+import { MapPin, Facebook, Instagram } from 'lucide-react';
 
 interface ContactProps {
   isModal?: boolean;
@@ -31,45 +31,27 @@ export function Contact({ isModal = false }: ContactProps) {
               <div>
                 <h4 className="text-gray-900 mb-1">Adresse</h4>
                 <p className="text-gray-600">
-                  Centre de Secours de Tourlaville<br />
-                  Tourlaville, 50110<br />
-                  Manche, Normandie
+                  401 Rue du Capitaine Rolland Picquot<br />
+                  50110 Cherbourg-en-Cotentin
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <Mail className="w-6 h-6 text-red-700" />
-              </div>
-              <div>
-                <h4 className="text-gray-900 mb-1">Email</h4>
-                <a href="mailto:contact@amicale-pompiers-tourlaville.fr" className="text-red-700 hover:text-red-800">
-                  contact@amicale-pompiers-tourlaville.fr
+            <div>
+              <h4 className="text-gray-900 mb-3">Réseaux sociaux</h4>
+              <div className="space-y-3">
+                <a href="#" className="flex items-center space-x-2 text-red-700 hover:text-red-800">
+                  <Facebook className="w-5 h-5" />
+                  <span>Suivez-nous sur Facebook</span>
                 </a>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <Phone className="w-6 h-6 text-red-700" />
-              </div>
-              <div>
-                <h4 className="text-gray-900 mb-1">Téléphone</h4>
-                <a href="tel:+33233000000" className="text-red-700 hover:text-red-800">
-                  02 33 00 00 00
-                </a>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <Facebook className="w-6 h-6 text-red-700" />
-              </div>
-              <div>
-                <h4 className="text-gray-900 mb-1">Réseaux sociaux</h4>
-                <a href="#" className="text-red-700 hover:text-red-800">
-                  Suivez-nous sur Facebook
+                <a
+                  href="https://www.instagram.com/cis.tourlaville/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 text-red-700 hover:text-red-800"
+                >
+                  <Instagram className="w-5 h-5" />
+                  <span>Suivez-nous sur Instagram</span>
                 </a>
               </div>
             </div>
